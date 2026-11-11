@@ -142,6 +142,6 @@ jobs:
             - **macOS:** `.dmg` (Apple Silicon için `arm64`, Intel için `x64`) → uygulamayı *Uygulamalar*’a sürükle. İlk açılışta sağ tık → *Aç*.
             - **Linux:** `.AppImage` → çalıştırılabilir yap ve aç.
             - **Android:** `.apk` → telefonda aç, *bilinmeyen kaynaklara izin ver* → yükle.
-            - **iPhone / tarayıcı:** https://zelisss.github.io/trade-jurnal/ adresini aç; Safari’de *Paylaş → Ana Ekrana Ekle*.
+            - **iPhone / tarayıcı:** https://zelisss.github.io/Trade-jurnal/ adresini aç; Safari’de *Paylaş → Ana Ekrana Ekle*.
 
             Veriler her cihazda ayrı saklanır. Cihaz değiştirirken *Ayarlar → Yedek indir / Yedekten yükle* kullan.

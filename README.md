@@ -10,8 +10,8 @@ Traderlar için işlem günlüğü ve performans analizi. Her işlemi teyitleri,
 | **macOS** | Son sürüm → `.dmg` (Apple Silicon: `arm64`, Intel: `x64`). İlk açılışta sağ tık → *Aç* |
 | **Linux** | Son sürüm → `.AppImage` |
 | **Android** | Son sürüm → `.apk` (bilinmeyen kaynaklara izin ver) ya da web sürümünde Chrome → *Uygulamayı yükle* |
-| **iPhone / iPad** | Safari’de **https://zelisss.github.io/trade-jurnal/** → Paylaş → *Ana Ekrana Ekle* |
-| **Tarayıcı** | https://zelisss.github.io/trade-jurnal/ — Chrome/Edge’de adres çubuğundaki *yükle* simgesiyle masaüstü uygulaması olarak da kurulabilir |
+| **iPhone / iPad** | Safari’de **https://zelisss.github.io/Trade-jurnal/** → Paylaş → *Ana Ekrana Ekle* |
+| **Tarayıcı** | https://zelisss.github.io/Trade-jurnal/ — Chrome/Edge’de adres çubuğundaki *yükle* simgesiyle masaüstü uygulaması olarak da kurulabilir |
 
 Uygulama tamamen çevrimdışı çalışır. **Veriler her cihazda ayrı saklanır**; cihaz değiştirirken *Ayarlar → Yedek indir* ve diğer cihazda *Yedekten yükle* kullan.
 

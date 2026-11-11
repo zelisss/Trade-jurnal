@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Trade Jurnal</title>
+<meta name="theme-color" content="#0a0e13">
+<meta name="description" content="Traderlar için işlem günlüğü ve performans analizi">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/favicon-64.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trade Jurnal">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;
+  --bg:#0a0e13;--panel:#111821;--panel2:#16202b;--line:#223042;--line2:#2c3c52;
+  --text:#e6edf3;--mut:#8b9bb0;--dim:#5d6d82;
+  --acc:#38bdf8;--acc2:#0ea5e9;--win:#22c55e;--loss:#ef4444;--be:#eab308;--warn:#f59e0b;
+  --r:12px;--mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 Inter,system-ui,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+option{background:#111821;color:#e6edf3}
+a{color:var(--acc)}
+.mono{font-family:var(--mono)}
+.mut{color:var(--mut)}.dim{color:var(--dim)}
+.pos{color:var(--win)}.neg{color:var(--loss)}.zer{color:var(--be)}
+/* header */
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:10px 20px;background:rgba(10,14,19,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.brand{font-weight:700;letter-spacing:.3px;white-space:nowrap}
+.brand b{color:var(--acc)}
+nav{display:flex;gap:4px;overflow-x:auto;flex:1}
+nav button{background:none;border:0;padding:8px 12px;border-radius:8px;color:var(--mut);cursor:pointer;white-space:nowrap;font-weight:500}
+nav button:hover{color:var(--text);background:var(--panel)}
+nav button.on{color:var(--text);background:var(--panel2);box-shadow:inset 0 -2px 0 var(--acc)}
+.top-actions{display:flex;align-items:center;gap:10px}
+.badge{font-size:12px;padding:3px 8px;border-radius:99px;border:1px solid var(--line2);color:var(--mut);white-space:nowrap}
+.badge.cloud{border-color:#14532d;color:#86efac}
+.badge.demo{border-color:#713f12;color:#fde68a}
+.btn{border:1px solid var(--line2);background:var(--panel2);padding:8px 14px;border-radius:9px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--acc)}
+.btn.primary{background:var(--acc2);border-color:var(--acc2);color:#04131d;font-weight:600}
+.btn.primary:hover{background:var(--acc)}
+.btn.danger{border-color:#7f1d1d;color:#fca5a5}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn.ghost{background:none}
+.btn:disabled{opacity:.5;cursor:default}
+/* layout */
+.wrap{max-width:1320px;margin:0 auto;padding:16px 20px 80px}
+#banner:empty{display:none}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.bar label{font-size:12px;color:var(--mut);display:flex;align-items:center;gap:6px}
+select,input[type=text],input[type=number],input[type=datetime-local],input[type=search],textarea{background:var(--bg);border:1px solid var(--line2);border-radius:8px;padding:7px 9px;outline:none}
+select:focus,input:focus,textarea:focus{border-color:var(--acc)}
+textarea{width:100%;resize:vertical;min-height:64px}
+.note{padding:10px 14px;border-radius:10px;border:1px solid var(--line2);background:var(--panel);margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.note.warn{border-color:#713f12;background:#1c1408}
+.note.info{border-color:#0c4a6e;background:#0a1823}
+.grid{display:grid;gap:14px}
+.g-kpi{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:2fr 1fr}
+@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;min-width:0}
+.card{overflow-x:auto}.grid>*{min-width:0}
+html,body{overflow-x:hidden}
+.card h3{margin:0 0 10px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;justify-content:space-between}
+.card h3 small{font-weight:400;color:var(--mut);font-size:12px}
+.kpi .l{font-size:12px;color:var(--mut)}
+.kpi .v{font:700 22px/1.2 var(--mono);margin-top:4px}
+.kpi .s{font-size:12px;color:var(--dim);margin-top:2px}
+/* tables */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-weight:500;color:var(--mut);font-size:12px;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:7px 8px;border-bottom:1px solid #1a2532;vertical-align:middle}
+.tbl td.n,.tbl th.n{text-align:right;font-family:var(--mono);white-space:nowrap}
+.tbl tr.low td{opacity:.55}
+.tbl tr.click{cursor:pointer}.tbl tr.click:hover td{background:var(--panel2)}
+.scroll{overflow-x:auto}
+.barcell{position:relative;min-width:110px}
+.barcell .b{position:absolute;top:50%;height:8px;transform:translateY(-50%);border-radius:3px;opacity:.85}
+.barcell .mid{position:absolute;left:50%;top:4px;bottom:4px;width:1px;background:var(--line2)}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--panel2);border:1px solid var(--line2);color:var(--mut);margin:1px 2px 1px 0;white-space:nowrap}
+.tag.low{border-style:dashed}
+.res{display:inline-block;min-width:44px;text-align:center;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px}
+.res.win{background:#052e16;color:#86efac}.res.loss{background:#3f0d0d;color:#fca5a5}.res.be{background:#3a2e05;color:#fde68a}.res.open{background:#0c2a3d;color:#7dd3fc}
+.dir{font-size:11px;font-weight:700}.dir.long{color:var(--win)}.dir.short{color:var(--loss)}
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line2);background:var(--bg);padding:5px 11px;border-radius:99px;cursor:pointer;font-size:13px;user-select:none}
+.chip:hover{border-color:var(--acc)}
+.chip.on{background:#0c3048;border-color:var(--acc);color:#e0f2fe}
+.chip.on.bad{background:#3f0d0d;border-color:var(--loss);color:#fecaca}
+.chip.on.good{background:#052e16;border-color:var(--win);color:#bbf7d0}
+.chip-add{border:1px dashed var(--line2);background:none;border-radius:99px;padding:4px 10px;width:150px;font-size:13px}
+.fld .seg{align-self:flex-start}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden}
+.seg button{background:var(--bg);border:0;padding:7px 14px;cursor:pointer;border-right:1px solid var(--line2)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--acc2);color:#04131d;font-weight:600}
+.seg.dir button.on[data-v=long]{background:var(--win)}
+.seg.dir button.on[data-v=short]{background:var(--loss);color:#fff}
+/* drawer */
+.drawer-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40;display:none}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(760px,100%);background:var(--panel);border-left:1px solid var(--line);z-index:41;transform:translateX(100%);transition:transform .2s;overflow-y:auto}
+.drawer.open{transform:none}
+.drawer-bg.open{display:block}
+.dhead{position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;z-index:2}
+.dhead h2{margin:0;font-size:16px}
+.dbody{padding:16px 18px 30px}
+.fsec{border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:12px;background:var(--panel2)}
+.fsec.hl{border-color:#7f1d1d;background:#1a0e10}
+.fsec > h4{margin:0 0 10px;font-size:13px;color:var(--acc);text-transform:uppercase;letter-spacing:.6px;display:flex;justify-content:space-between}
+.fsec.hl > h4{color:#fca5a5}
+.frow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
+.frow:last-child{margin-bottom:0}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld > span{font-size:12px;color:var(--mut)}
+.fld input,.fld select{width:100%}
+.calc{font:600 13px var(--mono);padding:8px 0}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.thumbs .th{position:relative}
+.thumbs img{height:90px;border-radius:8px;border:1px solid var(--line2);cursor:zoom-in;display:block}
+.thumbs .th button{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:0;border-radius:6px;cursor:pointer;color:#fff;padding:0 6px}
+.dfoot{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 18px;display:flex;gap:10px;justify-content:flex-end}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:20px;max-width:440px;width:100%}
+.modal h3{margin:0 0 8px}
+.modal .acts{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+.imgview{max-width:95vw;max-height:90vh;border-radius:10px}
+/* toast */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{background:#0f2536;border:1px solid var(--acc2);padding:9px 16px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.toast.err{background:#2a0f0f;border-color:var(--loss)}
+/* charts */
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto}
+.tip{position:absolute;pointer-events:none;background:#0b1520;border:1px solid var(--line2);border-radius:8px;padding:6px 9px;font-size:12px;white-space:nowrap;display:none;z-index:3}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .h{font-size:11px;color:var(--dim);text-align:center}
+.cal .d{aspect-ratio:1.25;border-radius:7px;background:var(--bg);border:1px solid #1a2532;padding:3px 5px;font-size:11px;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.cal .d .r{font:600 11px var(--mono);text-align:right}
+.cal .d.x{visibility:hidden}
+.heat td.c{text-align:center;font:600 12px var(--mono);border:1px solid var(--bg);min-width:64px}
+.heat td.c small{display:block;font:400 10px Inter;opacity:.75}
+/* insights */
+.ins{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid #1a2532}
+.ins:last-child{border-bottom:0}
+.ins .ic{flex:0 0 30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.ins .ic.g{background:#052e16}.ins .ic.b{background:#3f0d0d}.ins .ic.r{background:#0c3048}.ins .ic.i{background:var(--panel2)}
+.ins h5{margin:0 0 2px;font-size:14px}
+.ins p{margin:0;color:#c3cfdc;font-size:13.5px}
+.ai{line-height:1.65}
+.ai h3{font-size:15px;color:var(--acc);margin:18px 0 6px}
+.ai h4{font-size:14px;margin:14px 0 4px}
+.ai ul{margin:4px 0;padding-left:20px}
+.ai p{margin:6px 0}
+.empty{text-align:center;padding:50px 20px}
+.empty h2{margin:0 0 8px}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 12px;font-size:13px}
+.kv div:nth-child(odd){color:var(--mut)}
+.listed{display:flex;flex-wrap:wrap;gap:6px}
+.listed .tag{font-size:12.5px;padding:3px 4px 3px 10px;display:inline-flex;align-items:center;gap:4px;color:var(--text)}
+.listed .tag button{background:none;border:0;color:var(--mut);cursor:pointer;padding:0 4px}
+.listed .tag button:hover{color:var(--loss)}
+.sp{flex:1}
+.hide{display:none!important}
+nav i{font-style:normal;margin-right:6px;opacity:.8}
+.l-sm{display:none}
+.top{padding-top:max(10px,env(safe-area-inset-top));padding-left:max(20px,env(safe-area-inset-left));padding-right:max(20px,env(safe-area-inset-right))}
+.dhead{padding-top:max(12px,env(safe-area-inset-top))}
+.dfoot{padding-bottom:max(12px,env(safe-area-inset-bottom))}
+@media(max-width:700px){
+  .top{padding:max(8px,env(safe-area-inset-top)) 12px 8px;gap:8px;backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg)}
+  .brand{flex:1}
+  .wrap{padding:12px 12px calc(84px + env(safe-area-inset-bottom))}
+  .l-lg{display:none}.l-sm{display:inline}
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(17,24,33,.97);backdrop-filter:blur(8px);border-top:1px solid var(--line);justify-content:space-around;gap:0;padding:4px 4px calc(4px + env(safe-area-inset-bottom));overflow:visible}
+  nav button{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:11px;padding:6px 4px;flex:1;border-radius:10px}
+  nav button i{margin:0;font-size:18px}
+  nav button.on{box-shadow:none;color:var(--acc);background:none}
+  #installBtn{display:none!important}
+  .bar{padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px}.bar label{flex-direction:column;align-items:stretch;gap:2px;font-size:11px}.bar select{width:100%;min-width:0;padding:6px}.bar .sp{display:none}.bar > .btn{grid-column:1/-1}
+  .card{padding:12px}
+  .kpi .v{font-size:19px}
+  .g-kpi{grid-template-columns:repeat(2,1fr);gap:10px}
+  .drawer{width:100%;border-left:0}
+  .dbody{padding:12px}
+  .seg button{padding:8px 11px}
+  .badge{display:none}
+  #toast{bottom:calc(90px + env(safe-area-inset-bottom))}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">◆ Trade<b>Jurnal</b></div>
+  <nav id="nav">
+    <button data-view="panel"><i>◧</i><span>Panel</span></button>
+    <button data-view="islemler"><i>☰</i><span>İşlemler</span></button>
+    <button data-view="analiz"><i>▤</i><span>Analiz</span></button>
+    <button data-view="koc"><i>✦</i><span class="l-lg">Koç &amp; Yorumlar</span><span class="l-sm">Koç</span></button>
+    <button data-view="ayarlar"><i>⚙</i><span>Ayarlar</span></button>
+  </nav>
+  <div class="top-actions">
+    <span id="storeBadge" class="badge">Yükleniyor…</span>
+    <button class="btn hide" id="installBtn" data-act="install">⤓ Uygulamayı yükle</button>
+    <button class="btn primary" data-act="new" title="Kısayol: N">+ <span class="l-lg">Yeni İşlem</span><span class="l-sm">İşlem</span></button>
+  </div>
+</header>
+<div class="wrap">
+  <div id="banner"></div>
+  <div id="filters" class="bar"></div>
+  <main id="main"></main>
+</div>
+<div class="drawer-bg" id="drawerBg" data-act="closeDrawer"></div>
+<aside class="drawer" id="drawer" aria-hidden="true"></aside>
+<div id="modalRoot"></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ============ Sabitler ============ */
+const LS_KEY = 'tj.v1';
+const CLEAN = 'Hata yok – kurallı kayıp';
+const DEF = {
+  pairs: ['EURUSD','GBPUSD','USDJPY','XAUUSD','NAS100','US30','BTCUSD','GBPJPY','AUDUSD','USDCAD'],
+  concepts: ['Order Block','Fair Value Gap (FVG)','Breaker Block','Likidite Avı (Sweep)','MSS / CHoCH Dönüşü','Silver Bullet','Judas Swing','Destek/Direnç Kırılımı','Trend Devamı (Pullback)','Supply / Demand'],
+  confirmations: ['HTF bias uyumlu','Likidite alındı','MSS / CHoCH oluştu','FVG içinde giriş','OTE (%62–79) bölgesi','Killzone içinde','Displacement (güçlü mum)','SMT diverjansı','Premium/Discount doğru','Hacim teyidi','Haber riski yok'],
+  mistakes: [CLEAN,'Erken giriş (teyit beklemedim)',"HTF bias'a ters işlem",'SL çok dar','Kötü RR (< 1:2)','Haber saatinde işlem','FOMO ile giriş','İntikam işlemi','Plan dışı işlem',"TP'yi erken kapattım","SL'i genişlettim / kaydırdım",'Aşırı lot / risk','Killzone dışı işlem','Likidite alınmadan girdim','Konsolidasyonda işlem'],
+  sessions: ['Asya','Londra','Londra/NY Kesişim','New York','Seans dışı'],
+  emotions: ['Sakin','Kendinden emin','Aceleci','Korkulu','FOMO','İntikam hissi','Yorgun'],
+  timeframes: ['M1','M5','M15','M30','H1','H4','D1','W1'],
+  currency: '$', startBalance: 10000, defaultRisk: 100, minSample: 5
+};
+const ADVICE = {
+  'Erken giriş (teyit beklemedim)': 'Emir girmeden önce teyit listeni tek tek işaretle; zorunlu teyitler tamamlanmadan giriş yok.',
+  "HTF bias'a ters işlem": 'Her seans öncesi D1/H4 yönünü yaz. Bias’a ters işlem açmamayı kural yap.',
+  'SL çok dar': 'SL’i yapının/likiditenin arkasına koy; riski SL’i daraltarak değil lotu küçülterek ayarla.',
+  'Kötü RR (< 1:2)': 'Planlanan RR 1:2’nin altındaysa işlemi pas geç.',
+  'Haber saatinde işlem': 'Yüksek etkili haberden 30 dk önce ve sonra işlem açma.',
+  'FOMO ile giriş': 'Kaçan hareketin peşinden koşma; geri çekilme ya da yeni setup bekle.',
+  'İntikam işlemi': 'Arka arkaya 2 SL sonrası o gün ekranı kapat.',
+  'Plan dışı işlem': 'Yalnızca jurnalindeki konseptlerden biriyle işlem aç; plansız setup = işlem yok.',
+  "TP'yi erken kapattım": 'Kısmi kâr + BE kuralını önceden belirle, kalanını TP’ye bırak.',
+  "SL'i genişlettim / kaydırdım": 'SL konduktan sonra yalnızca kâr yönüne taşınabilir.',
+  'Aşırı lot / risk': 'İşlem başı riski sabitle (%0,5–1) ve lot hesaplayıcı kullan.',
+  'Killzone dışı işlem': 'Sadece belirlediğin seans saatlerinde işlem aç.',
+  'Likidite alınmadan girdim': 'Girişten önce belirgin bir likidite süpürmesi şartı ara.',
+  'Konsolidasyonda işlem': 'Net bir yapı kırılımı (BOS/MSS) yoksa range içinde işlem açma.'
+};
+const WD = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+const RESULTS = [['TP','TP'],['SL','SL'],['BE','BE'],['MANUEL','Manuel'],['OPEN','Açık']];
+
+/* ============ Durum ============ */
+const S = {
+  trades: [], settings: clone(DEF), backend: 'local', demo: false, demoTrades: [],
+  filters: { range: 'all', pair: '', concept: '', dir: '' },
+  view: 'panel', q: '', qRes: '', eqMode: 'R', calMonth: null,
+  coach: null, aiAvailable: false, cloudLoaded: false, localTradesAtStart: 0
+};
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) ? n : null; };
+const r2 = x => Math.round(x * 100) / 100;
+const fmtR = (x, d = 2) => x == null || !isFinite(x) ? '–' : (x > 0 ? '+' : '') + x.toFixed(d) + 'R';
+const fmtP = x => x == null || !isFinite(x) ? '–' : '%' + Math.round(x * 100);
+const fmtPF = x => x == null ? '–' : (x === Infinity ? '∞' : x.toFixed(2));
+const cur = () => S.settings.currency || '$';
+const fmtM = x => x == null || !isFinite(x) ? '–' : (x < 0 ? '-' : x > 0 ? '+' : '') + cur() + Math.abs(x).toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+const cls = x => x == null ? '' : x > 0.0001 ? 'pos' : x < -0.0001 ? 'neg' : 'zer';
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+function nowLocal(){ const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); }
+function localDate(d){ const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10); }
+const RES_OK = ['TP', 'SL', 'BE', 'MANUEL', 'OPEN'];
+const IMG_RE = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/;
+function safeId(v){ return String(v || uid()).replace(/[^A-Za-z0-9_\-.~:@+]/g, '_').slice(0, 100) || uid(); }
+// Dışarıdan gelen (yedek dosyası, eski kayıt, bulut) işlemleri güvenli ve tutarlı hale getirir
+function sanitizeTrade(t){
+  if (!t || typeof t !== 'object') return null;
+  const str = (v, max = 5000) => v == null ? '' : String(v).slice(0, max);
+  const n = v => { const x = typeof v === 'number' ? v : num(v); return x == null || !isFinite(x) ? null : x; };
+  const arr = v => Array.isArray(v) ? [...new Set(v.filter(x => typeof x === 'string' || typeof x === 'number').map(x => String(x).slice(0, 200)))] : [];
+  const date = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(String(t.date || '').slice(0, 16)) ? String(t.date).slice(0, 16) : '';
+  const result = RES_OK.includes(t.result) ? t.result : (n(t.r) == null ? 'OPEN' : 'MANUEL');
+  return {
+    id: safeId(t.id), date, pair: str(t.pair, 40).toUpperCase(), dir: t.dir === 'short' ? 'short' : 'long',
+    session: str(t.session, 80), htf: str(t.htf, 10), ltf: str(t.ltf, 10), concept: str(t.concept, 200),
+    confs: arr(t.confs), grade: ['A+', 'A', 'B', 'C'].includes(t.grade) ? t.grade : '', notes: str(t.notes), lesson: str(t.lesson),
+    entry: n(t.entry), sl: n(t.sl), tp: n(t.tp), exit: n(t.exit), risk: n(t.risk),
+    result, r: result === 'OPEN' ? null : n(t.r), pnl: n(t.pnl), rManual: !!t.rManual,
+    emotion: str(t.emotion, 80), plan: ['Evet', 'Kısmen', 'Hayır'].includes(t.plan) ? t.plan : '', mistakes: arr(t.mistakes),
+    imgs: (Array.isArray(t.imgs) ? t.imgs : []).filter(x => typeof x === 'string' && IMG_RE.test(x)).slice(0, 2),
+    tags: arr(t.tags), createdAt: str(t.createdAt, 40), updatedAt: str(t.updatedAt, 40)
+  };
+}
+const sanitizeList = list => (Array.isArray(list) ? list : []).map(sanitizeTrade).filter(t => t && t.pair);
+function sanitizeSettings(o){
+  const out = clone(DEF); if (!o || typeof o !== 'object') return out;
+  for (const k of Object.keys(DEF)) {
+    if (Array.isArray(DEF[k])) { if (Array.isArray(o[k])) out[k] = [...new Set(o[k].filter(x => typeof x === 'string' && x.trim()).map(x => x.slice(0, 200)))]; }
+    else if (k === 'currency') { if (o[k]) out[k] = String(o[k]).slice(0, 4); }
+    else { const x = num(o[k]); if (x != null) out[k] = x; }
+  }
+  return out;
+}
+function fmtDate(s){ if (!s) return ''; const [d, t] = s.split('T'); const [y, m, dd] = d.split('-'); return `${dd}.${m}.${y.slice(2)}${t ? ' ' + t.slice(0, 5) : ''}`; }
+
+/* ============ Saklama ============ */
+const caps = {};
+function getCap(name){
+  if (!(name in caps)) {
+    caps[name] = (window.claude && typeof window.claude.use === 'function')
+      ? Promise.resolve(window.claude.use(name)).catch(() => null) : Promise.resolve(null);
+  }
+  return caps[name];
+}
+const Store = {
+  db: null, uid: null, tradesCol: null, settingsRef: null, coachRef: null, settingsTimer: null,
+  loadLocal(){
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) { const o = JSON.parse(raw); S.trades = sanitizeList(o.trades); if (o.settings) S.settings = sanitizeSettings(o.settings); S.coach = o.coach && typeof o.coach.text === 'string' ? o.coach : null; }
+    } catch (e) {}
+    S.localTradesAtStart = S.trades.length;
+  },
+  saveLocal(){
+    if (S.backend !== 'local') return true;
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ trades: S.trades, settings: S.settings, coach: S.coach })); return true; }
+    catch (e) { toast('Tarayıcı depolama alanı doldu. Görselleri azaltın veya yedek alın.', true); return false; }
+  },
+  async init(){
+    this.loadLocal();
+    render();
+    let db = null, user = null;
+    try { [db, user] = await Promise.all([getCap('db'), getCap('user')]); } catch (e) {}
+    getCap('sample').then(s => { S.aiAvailable = !!s; if (S.view === 'koc') render(); });
+    if (!db || !user) { S.backend = 'local'; updateBadge(); render(); return; }
+    let id = null; try { id = await user.id(); } catch (e) {}
+    if (!id) { S.backend = 'local'; updateBadge(); render(); return; }
+    this.db = db; this.uid = id;
+    const base = db.doc(`data/users/${id}/journal`);
+    this.tradesCol = base.collection('trades');
+    this.settingsRef = db.doc(`data/users/${id}/settings`);
+    this.coachRef = db.doc(`data/users/${id}/coach`);
+    S.backend = 'cloud'; S.trades = []; S.cloudLoaded = false; updateBadge(); render();
+    const timer = setTimeout(() => { if (!S.cloudLoaded) banner('Bulut verilerine şu an ulaşılamıyor; bağlantı gelince otomatik yüklenecek.', 'warn'); }, 10000);
+    this.tradesCol.onSnapshot(snap => {
+      S.trades = sanitizeList(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+      if (!snap.metadata.fromCache) { clearTimeout(timer); if (!S.cloudLoaded) { S.cloudLoaded = true; banner(''); maybeOfferMigration(); } }
+      render();
+    }, err => { clearTimeout(timer); banner('Bulut bağlantısı kesildi. Sayfayı yeniden açtığınızda tekrar bağlanır.', 'warn'); });
+    this.settingsRef.onSnapshot(snap => { if (snap.exists) { S.settings = sanitizeSettings(snap.data()); if (S.view !== 'ayarlar' || !document.activeElement || !document.activeElement.closest('#main input')) render(); } }, () => {});
+    this.coachRef.onSnapshot(snap => { if (snap.exists && typeof (snap.data() || {}).text === 'string') { S.coach = snap.data(); if (S.view === 'koc') render(); } }, () => {});
+  },
+  async putTrade(t){
+    if (S.demo) { const i = S.demoTrades.findIndex(x => x.id === t.id); if (i >= 0) S.demoTrades[i] = t; else S.demoTrades.push(t); return true; }
+    if (S.backend === 'cloud') {
+      try { await this.tradesCol.doc(t.id).set(stripUndef(t)); return true; }
+      catch (e) { handleDbErr(e); return false; }
+    }
+    const i = S.trades.findIndex(x => x.id === t.id); const prev = i >= 0 ? S.trades[i] : null;
+    if (i >= 0) S.trades[i] = t; else S.trades.push(t);
+    if (!this.saveLocal()) { if (prev) S.trades[i] = prev; else S.trades.pop(); return false; }
+    return true;
+  },
+  async delTrade(id){
+    if (S.demo) { S.demoTrades = S.demoTrades.filter(t => t.id !== id); return true; }
+    if (S.backend === 'cloud') { try { await this.tradesCol.doc(id).delete(); return true; } catch (e) { handleDbErr(e); return false; } }
+    S.trades = S.trades.filter(t => t.id !== id); this.saveLocal(); return true;
+  },
+  saveSettings(){
+    if (S.backend === 'cloud') {
+      clearTimeout(this.settingsTimer);
+      this.settingsTimer = setTimeout(async () => { try { await this.settingsRef.set(clone(S.settings)); } catch (e) { handleDbErr(e); } }, 600);
+    } else this.saveLocal();
+  },
+  async saveCoach(c){
+    S.coach = c;
+    if (S.backend === 'cloud') { try { await this.coachRef.set(c); } catch (e) {} } else this.saveLocal();
+  },
+  async bulkPut(list){
+    let ok = 0;
+    for (const t of list) { if (await this.putTrade(t)) ok++; else break; }
+    if (S.backend === 'local') this.saveLocal();
+    return ok;
+  }
+};
+function stripUndef(o){ return JSON.parse(JSON.stringify(o)); }
+function handleDbErr(e){
+  const c = e && e.code;
+  if (c === 'quota_exceeded') toast('Depolama sınırı doldu. Eski görselleri silin veya işlemleri dışa aktarın.', true);
+  else if (c === 'invalid_argument') toast('Kayıt reddedildi (görseller çok büyük olabilir).', true);
+  else if (c === 'revoked') toast('Bu sayfanın kayıt erişimi kaldırıldı.', true);
+  else toast('Kaydedilemedi, tekrar deneyin.', true);
+}
+function maybeOfferMigration(){
+  try {
+    const raw = localStorage.getItem(LS_KEY); if (!raw) return;
+    const o = JSON.parse(raw); const loc = Array.isArray(o.trades) ? o.trades : [];
+    if (!loc.length || S.trades.length) return;
+    banner(`Bu tarayıcıda ${loc.length} yerel işlem kaydı var. Hesabına (buluta) aktarmak ister misin? <button class="btn sm primary" data-act="migrate">Buluta aktar</button>`, 'info', true);
+  } catch (e) {}
+}
+function updateBadge(){
+  const b = $('#storeBadge');
+  if (S.demo) { b.className = 'badge demo'; b.textContent = 'Demo modu'; return; }
+  if (S.backend === 'cloud') { b.className = 'badge cloud'; b.textContent = '● Hesabına kaydediliyor'; b.title = 'Veriler hesabına özel olarak saklanır; her cihazdan erişebilirsin.'; }
+  else { b.className = 'badge'; b.textContent = 'Bu cihazda'; b.title = 'Veriler bu cihazda saklanıyor. Düzenli olarak yedek (JSON) almanı öneririz.'; }
+}
+
+/* ============ Hesaplamalar ============ */
+const all = () => S.demo ? S.demoTrades : S.trades;
+const isClosed = t => t.result !== 'OPEN' && t.r != null && isFinite(t.r);
+function outcome(t){ if (!isClosed(t)) return 'open'; if (t.result === 'BE' || Math.abs(t.r) < 0.05) return 'be'; return t.r > 0 ? 'win' : 'loss'; }
+const pnlOf = t => t.pnl != null ? t.pnl : (t.r != null && t.risk != null ? t.r * t.risk : null);
+function sortByDate(list){ return [...list].sort((a, b) => (a.date || '').localeCompare(b.date || '')); }
+
+function applyFilters(list){
+  const f = S.filters; let from = null;
+  const d = new Date();
+  if (f.range === '7' || f.range === '30' || f.range === '90') { d.setDate(d.getDate() - (+f.range)); from = localDate(d); }
+  else if (f.range === 'month') from = nowLocal().slice(0, 7) + '-01';
+  else if (f.range === 'ytd') from = nowLocal().slice(0, 4) + '-01-01';
+  return list.filter(t => (!from || (t.date || '') >= from) && (!f.pair || t.pair === f.pair) && (!f.concept || t.concept === f.concept) && (!f.dir || t.dir === f.dir));
+}
+
+function stats(list){
+  const c = sortByDate(list.filter(isClosed));
+  let w = 0, l = 0, b = 0, sw = 0, sl = 0, tot = 0, pnl = 0, hasPnl = false;
+  let peak = 0, eq = 0, dd = 0, ws = 0, ls = 0, maxWS = 0, maxLS = 0;
+  for (const t of c) {
+    const o = outcome(t);
+    if (o === 'win') { w++; sw += t.r; ws++; ls = 0; } else if (o === 'loss') { l++; sl += t.r; ls++; ws = 0; } else { b++; }
+    maxWS = Math.max(maxWS, ws); maxLS = Math.max(maxLS, ls);
+    tot += t.r; eq += t.r; peak = Math.max(peak, eq); dd = Math.min(dd, eq - peak);
+    const p = pnlOf(t); if (p != null) { pnl += p; hasPnl = true; }
+  }
+  const n = c.length;
+  return {
+    n, w, l, b, tot, pnl, hasPnl, maxDD: dd, maxWS, maxLS,
+    wr: (w + l) ? w / (w + l) : null,
+    exp: n ? tot / n : null,
+    avgW: w ? sw / w : null, avgL: l ? sl / l : null,
+    pf: sl < 0 ? sw / Math.abs(sl) : (sw > 0 ? Infinity : null),
+    cur: ws ? { k: 'win', n: ws } : ls ? { k: 'loss', n: ls } : null
+  };
+}
+function groupStats(list, keyFn){
+  const m = new Map();
+  for (const t of list) {
+    let ks = keyFn(t); if (!Array.isArray(ks)) ks = [ks];
+    for (const k of ks) { if (k == null || k === '') continue; if (!m.has(k)) m.set(k, []); m.get(k).push(t); }
+  }
+  return [...m].map(([key, ts]) => ({ key, ...stats(ts) })).filter(g => g.n > 0).sort((a, b) => b.tot - a.tot);
+}
+function confImpact(list){
+  const c = list.filter(isClosed);
+  const names = [...new Set([...S.settings.confirmations, ...c.flatMap(t => t.confs || [])])];
+  return names.map(name => {
+    const yes = c.filter(t => (t.confs || []).includes(name)), no = c.filter(t => !(t.confs || []).includes(name));
+    const a = stats(yes), b = stats(no);
+    return { name, yes: a, no: b, use: c.length ? yes.length / c.length : 0, dExp: a.exp != null && b.exp != null ? a.exp - b.exp : null, dWr: a.wr != null && b.wr != null ? a.wr - b.wr : null };
+  }).filter(x => x.yes.n > 0).sort((x, y) => (y.dExp ?? -1e9) - (x.dExp ?? -1e9));
+}
+function missingInLosses(list){
+  const c = list.filter(isClosed); const L = c.filter(t => outcome(t) === 'loss'), W = c.filter(t => outcome(t) === 'win');
+  if (!L.length) return [];
+  const names = [...new Set([...S.settings.confirmations, ...c.flatMap(t => t.confs || [])])];
+  return names.map(name => {
+    const mL = L.filter(t => !(t.confs || []).includes(name)).length / L.length;
+    const mW = W.length ? W.filter(t => !(t.confs || []).includes(name)).length / W.length : null;
+    return { name, mL, mW, gap: mW == null ? 0 : mL - mW };
+  }).sort((a, b) => b.gap - a.gap);
+}
+function mistakeStats(list){
+  const c = list.filter(isClosed); const L = c.filter(t => outcome(t) === 'loss');
+  const names = [...new Set([...S.settings.mistakes, ...c.flatMap(t => t.mistakes || [])])].filter(m => m !== CLEAN);
+  return names.map(name => {
+    const ts = c.filter(t => (t.mistakes || []).includes(name)); if (!ts.length) return null;
+    const s = stats(ts);
+    return { name, n: ts.length, lossShare: L.length ? ts.filter(t => outcome(t) === 'loss').length / L.length : 0, cost: ts.reduce((a, t) => a + t.r, 0), lossCost: ts.reduce((a, t) => a + Math.min(0, t.r), 0), s };
+  }).filter(Boolean).sort((a, b) => a.cost - b.cost);
+}
+function sessionOf(dateStr){
+  if (!dateStr) return '';
+  const h = new Date(dateStr).getUTCHours();
+  if (h >= 0 && h < 7) return 'Asya';
+  if (h >= 7 && h < 12) return 'Londra';
+  if (h >= 12 && h < 16) return 'Londra/NY Kesişim';
+  if (h >= 16 && h < 21) return 'New York';
+  return 'Seans dışı';
+}
+const hourKey = t => t.date && t.date.length > 12 ? t.date.slice(11, 13) + ':00' : null;
+const wdKey = t => t.date ? WD[new Date(t.date.slice(0, 10) + 'T12:00').getDay()] : null;
+const confBucket = t => { const k = (t.confs || []).length; return k >= 5 ? '5+ teyit' : k + ' teyit'; };
+
+/* ============ Yorum motoru ============ */
+function buildInsights(list){
+  const MIN = +S.settings.minSample || 5;
+  const A = stats(list);
+  const out = { genel: [], guclu: [], gelistir: [], kural: [] };
+  const add = (k, title, text) => out[k].push({ title, text });
+  if (A.n < 3) { add('genel', 'Henüz yeterli veri yok', `Anlamlı yorumlar için en az ${MIN * 3} kapanmış işlem öneriyoruz; şu an ${A.n} tane var. Her işlemi teyitleri ve (SL ise) eksikleriyle kaydetmeye devam et.`); return out; }
+
+  // Genel
+  let g = `${A.n} kapanmış işlemde kazanma oranın ${fmtP(A.wr)}, işlem başı beklentin ${fmtR(A.exp)}, toplam ${fmtR(A.tot)}. `;
+  g += A.exp > 0 ? 'Sistemin pozitif beklentili: asıl iş tutarlılığı korumak ve kayıpları kontrol altında tutmak.' : 'Beklentin negatif; mevcut haliyle uzun vadede hesabı eritir. Aşağıdaki zayıf noktaları kapatmak öncelikli.';
+  add('genel', 'Genel durum', g);
+  if (A.avgW != null && A.avgL != null) {
+    const be = Math.abs(A.avgL) / (A.avgW + Math.abs(A.avgL));
+    add('genel', 'Kazanma oranı mı, RR mı?', `Ortalama kazancın ${fmtR(A.avgW)}, ortalama kaybın ${fmtR(A.avgL)}. Bu oranla başa baş için ${fmtP(be)} kazanma oranı yeterli; sen ${fmtP(A.wr)} seviyesindesin (${A.wr >= be ? 'üstünde ✓' : 'altında ✗'}). ` +
+      (A.avgW < 1.5 ? 'Kazançların kısa; TP’leri erken alıyor olabilirsin.' : A.wr < 0.4 ? 'RR’ın iyi ama isabetin düşük; giriş filtrelerini sıkılaştırmak en hızlı kazanım.' : ''));
+  }
+  if (A.maxLS >= 4) add('gelistir', `Art arda ${A.maxLS} kayıp serisi`, `En uzun kayıp serin ${A.maxLS} işlem, maksimum düşüşün ${fmtR(A.maxDD)}. Günlük/haftalık maksimum kayıp limiti (örn. günde 2R) belirlemek bu serileri sınırlar.`);
+
+  // Pariteler & konseptler
+  const dims = [
+    ['Parite', groupStats(list, t => t.pair), 'paritede', 'parite'],
+    ['Konsept', groupStats(list, t => t.concept), 'konseptte', 'konsept']
+  ];
+  for (const [label, gs, loc] of dims) {
+    const ok = gs.filter(x => x.n >= MIN);
+    const best = ok.filter(x => x.exp > 0.15).sort((a, b) => b.exp - a.exp).slice(0, 2);
+    const worst = ok.filter(x => x.exp < 0).sort((a, b) => a.exp - b.exp).slice(0, 2);
+    for (const x of best) add('guclu', `${label}: ${x.key}`, `${x.n} işlem, kazanma ${fmtP(x.wr)}, ortalama ${fmtR(x.exp)}, toplam ${fmtR(x.tot)}. En verimli alanlarından biri; bu ${loc} odaklanmayı ve gerekirse riski sınırlı ölçüde artırmayı düşünebilirsin.`);
+    for (const x of worst) {
+      add('gelistir', `${label}: ${x.key}`, `${x.n} işlem, kazanma ${fmtP(x.wr)}, ortalama ${fmtR(x.exp)}, toplam ${fmtR(x.tot)}. Bu ${loc} sistemin şu an para kaybettiriyor.`);
+      add('kural', `${x.key} için koşullu kural`, `${x.key} ${loc} sadece A/A+ setuplarda ve en güçlü teyitlerin varken gir; ya da 20 işlem boyunca riskini yarıya indirip yeniden ölç.`);
+    }
+    if (!ok.length && gs.length) add('genel', `${label} karşılaştırması için veri az`, `Hiçbir ${label.toLowerCase()} için ${MIN} işlemlik minimum örnekleme ulaşılmadı. Ayarlar’dan minimum örneklemi düşürebilirsin ama sonuçlar daha az güvenilir olur.`);
+  }
+  // Parite × konsept en iyi kombinasyon
+  const combos = groupStats(list, t => t.pair && t.concept ? `${t.pair} + ${t.concept}` : null).filter(x => x.n >= MIN).sort((a, b) => b.exp - a.exp);
+  if (combos[0] && combos[0].exp > 0.3) add('guclu', `En iyi kombinasyon: ${combos[0].key}`, `${combos[0].n} işlemde ortalama ${fmtR(combos[0].exp)} (${fmtP(combos[0].wr)}). Bu senin “A+ oyun kitabın”; benzer durumları önceden ekranda işaretle.`);
+  const wc = combos[combos.length - 1];
+  if (wc && wc !== combos[0] && wc.exp < -0.3) add('gelistir', `En zayıf kombinasyon: ${wc.key}`, `${wc.n} işlemde ortalama ${fmtR(wc.exp)} (${fmtP(wc.wr)}). Bu kombinasyonu bir süre bırakmak doğrudan sonucunu iyileştirir.`);
+
+  // Teyitler
+  const imp = confImpact(list).filter(x => x.yes.n >= MIN && x.no.n >= MIN);
+  const strong = imp.filter(x => x.dExp > 0.25).slice(0, 3);
+  strong.forEach((x, i) => {
+    add('guclu', `Güçlü teyit: ${x.name}`, `Bu teyit varken ortalama ${fmtR(x.yes.exp)} (${fmtP(x.yes.wr)}), yokken ${fmtR(x.no.exp)} (${fmtP(x.no.wr)}). İşlem başı fark ${fmtR(x.dExp)}.`);
+    if (i < 2) add('kural', `“${x.name}” zorunlu olsun`, `Bu teyit olmadan işleme girme. Geçmiş verine göre bu kural işlem başına yaklaşık ${fmtR(x.dExp)} fark yaratıyor.`);
+  });
+  imp.filter(x => x.dExp < -0.15).slice(-2).forEach(x => add('gelistir', `İşe yaramayan teyit: ${x.name}`, `Bu teyit varken ${fmtR(x.yes.exp)}, yokken ${fmtR(x.no.exp)}. Sonucu iyileştirmiyor; ya yanlış okuyorsun ya da senin stratejinde bir anlamı yok. Tanımını netleştir veya listenden çıkar.`));
+  // Teyit sayısı
+  const c = list.filter(isClosed); let bestK = null;
+  for (let k = 2; k <= 6; k++) {
+    const hi = c.filter(t => (t.confs || []).length >= k), lo = c.filter(t => (t.confs || []).length < k);
+    if (hi.length < MIN || lo.length < MIN) continue;
+    const d = stats(hi).exp - stats(lo).exp;
+    if (!bestK || d > bestK.d) bestK = { k, d, hi: stats(hi), lo: stats(lo) };
+  }
+  if (bestK && bestK.d > 0.3) add('kural', `En az ${bestK.k} teyit kuralı`, `${bestK.k}+ teyitli işlemlerde ortalama ${fmtR(bestK.hi.exp)} (${fmtP(bestK.hi.wr)}), daha az teyitte ${fmtR(bestK.lo.exp)} (${fmtP(bestK.lo.wr)}). ${bestK.k} teyidin altında işlem açma.`);
+  // SL'lerde eksik teyit
+  const losses = c.filter(t => outcome(t) === 'loss');
+  if (losses.length >= MIN) {
+    const miss = missingInLosses(list).filter(x => x.gap > 0.2).slice(0, 2);
+    for (const x of miss) add('gelistir', `SL’lerin ortak eksiği: ${x.name}`, `SL olan işlemlerinin ${fmtP(x.mL)}’inde “${x.name}” yoktu; kazanan işlemlerde bu oran sadece ${fmtP(x.mW)}. Kayıplarını en çok bu eksik ayırıyor.`);
+  }
+  // Hatalar
+  const ms = mistakeStats(list).filter(m => m.cost < 0);
+  if (ms.length) {
+    const m = ms[0];
+    add('gelistir', `En pahalı hatan: ${m.name}`, `${m.n} kez yapılmış, toplam sonucu ${fmtR(m.cost)} (SL’lerinin ${fmtP(m.lossShare)}’inde var). Bu hatayla açtığın işlemleri hiç açmasaydın net sonucun ${fmtR(A.tot - m.cost)} olurdu.`);
+    ms.slice(0, 3).forEach(x => add('kural', `Hata önleme: ${x.name}`, ADVICE[x.name] || `“${x.name}” hatasını tetikleyen durumu yaz ve işlem öncesi kontrol listene ekle.`));
+    const lossR = losses.reduce((a, t) => a + t.r, 0);
+    const errR = losses.filter(t => (t.mistakes || []).some(x => x !== CLEAN)).reduce((a, t) => a + t.r, 0);
+    if (lossR < 0 && errR < 0) add('genel', 'Kayıplarının ne kadarı hatadan?', `Kayıplarının (toplam ${fmtR(lossR, 1)}) yaklaşık ${fmtP(errR / lossR)}’i hata işaretlediğin işlemlerden geliyor. Kalanı sistemin doğal kayıpları; onlar normal.`);
+  }
+  const untagged = losses.filter(t => !(t.mistakes || []).length).length;
+  if (untagged) add('genel', `${untagged} SL işleminde “eksik neydi?” boş`, `Bu alanı doldurmak analizi güçlendirir. Kurallara uyduysan “${CLEAN}” seç; o zaman kaybın sistemden mi hatadan mı geldiği net görünür.`);
+  const clean = losses.filter(t => (t.mistakes || []).includes(CLEAN)).length;
+  if (losses.length >= MIN && clean / losses.length >= 0.6) add('guclu', 'Disiplinli kayıplar', `SL’lerinin ${fmtP(clean / losses.length)}’i kurallı kayıp. Kayıpların çoğu stratejinin doğal maliyeti; disiplinin iyi.`);
+
+  // Seans / gün / yön
+  const sess = groupStats(list, t => t.session).filter(x => x.n >= MIN).sort((a, b) => b.exp - a.exp);
+  if (sess.length >= 2) {
+    const b = sess[0], w = sess[sess.length - 1];
+    if (b.exp > 0) add('guclu', `En iyi seans: ${b.key}`, `${b.n} işlem, ortalama ${fmtR(b.exp)} (${fmtP(b.wr)}).`);
+    if (w.exp < 0) { add('gelistir', `Zayıf seans: ${w.key}`, `${w.n} işlem, ortalama ${fmtR(w.exp)} (${fmtP(w.wr)}).`); add('kural', `${w.key} seansını kısıtla`, `${w.key} seansında yalnızca A+ setup al ya da bu seansta işlem açma.`); }
+  }
+  const days = groupStats(list, wdKey).filter(x => x.n >= MIN).sort((a, b) => a.exp - b.exp);
+  if (days.length >= 2 && days[0].exp < -0.2) add('gelistir', `Zor gün: ${days[0].key}`, `${days[0].key} günleri ${days[0].n} işlemde ortalama ${fmtR(days[0].exp)}. Bu gün için daha seçici ol.`);
+  const dirs = groupStats(list, t => t.dir === 'long' ? 'Long' : t.dir === 'short' ? 'Short' : null).filter(x => x.n >= MIN);
+  if (dirs.length === 2 && Math.abs(dirs[0].exp - dirs[1].exp) > 0.4) {
+    const [b, w] = dirs[0].exp > dirs[1].exp ? dirs : [dirs[1], dirs[0]];
+    add('gelistir', `${w.key} işlemlerin zayıf`, `${b.key}: ortalama ${fmtR(b.exp)}, ${w.key}: ${fmtR(w.exp)}. ${w.key} tarafında bias okumanı gözden geçir.`);
+  }
+  // Plan / duygu / kalite
+  const plan = groupStats(list, t => t.plan);
+  const pY = plan.find(x => x.key === 'Evet');
+  const pNs = stats(c.filter(t => t.plan && t.plan !== 'Evet'));
+  if (pY && pY.n >= MIN && pNs.n >= 3 && pY.exp > pNs.exp) add('gelistir', pNs.exp < 0 ? 'Plan dışına çıkınca kaybediyorsun' : 'Plan dışı işlemler daha zayıf', `Plana uyduğun ${pY.n} işlemde ortalama ${fmtR(pY.exp)}, uymadığın/kısmen uyduğun ${pNs.n} işlemde ${fmtR(pNs.exp)}. Plan dışı her işlem sana yaklaşık ${fmtR(pY.exp - pNs.exp)} kaybettiriyor.`);
+  const emo = groupStats(list, t => t.emotion).filter(x => x.n >= 3).sort((a, b) => a.exp - b.exp);
+  if (emo.length >= 2 && emo[0].exp < 0) add('gelistir', `Duygu durumu: ${emo[0].key}`, `“${emo[0].key}” hissederken açtığın ${emo[0].n} işlemde ortalama ${fmtR(emo[0].exp)}. Bu his varken işlem açmadan önce 10 dakika mola ver.`);
+  const gr = groupStats(list, t => t.grade).filter(x => x.n >= 3);
+  const gA = gr.find(x => x.key === 'A+'), gC = gr.find(x => x.key === 'C') || gr.find(x => x.key === 'B');
+  if (gA && gC && gA.exp - gC.exp > 0.4) add('kural', 'Sadece A kalite setuplar', `A+ setuplarında ortalama ${fmtR(gA.exp)}, ${gC.key} setuplarda ${fmtR(gC.exp)}. ${gC.key} seviyesindeki işlemleri bırakmak sonucu iyileştirir.`);
+  // Kayıp sonrası davranış (aynı gün)
+  const sorted = sortByDate(c); const afterLoss = [];
+  for (let i = 1; i < sorted.length; i++) if (outcome(sorted[i - 1]) === 'loss' && (sorted[i].date || '').slice(0, 10) === (sorted[i - 1].date || '').slice(0, 10)) afterLoss.push(sorted[i]);
+  if (afterLoss.length >= MIN) { const s = stats(afterLoss); if (s.exp < A.exp - 0.3) add('gelistir', 'SL sonrası aynı gün işlemler', `Aynı gün bir SL’den sonra açtığın ${s.n} işlemde ortalama ${fmtR(s.exp)} (genel ${fmtR(A.exp)}). Tilt belirtisi; SL sonrası en az 30 dk ara ver.`); }
+  // Aşırı işlem
+  const byDay = {}; sorted.forEach(t => { const d = (t.date || '').slice(0, 10); (byDay[d] = byDay[d] || []).push(t); });
+  const extra = Object.values(byDay).flatMap(a => a.slice(3));
+  if (extra.length >= MIN) { const s = stats(extra); if (s.exp < 0) add('kural', 'Günde en fazla 3 işlem', `Bir günün 4. ve sonraki işlemlerinde (${s.n} işlem) ortalama ${fmtR(s.exp)}. Günlük işlem sınırını 3 yap.`); }
+  return out;
+}
+
+/* ============ Render ============ */
+function render(){
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.view === S.view));
+  updateBadge(); renderFilters();
+  const m = $('#main');
+  if (S.backend === 'cloud' && !S.cloudLoaded && !S.trades.length && !S.demo) { m.innerHTML = '<div class="empty mut">Kayıtların yükleniyor…</div>'; return; }
+  ({ panel: renderPanel, islemler: renderTrades, analiz: renderAnalysis, koc: renderCoach, ayarlar: renderSettings }[S.view] || renderPanel)(m);
+}
+function renderFilters(){
+  const el = $('#filters');
+  if (S.view === 'ayarlar') { el.classList.add('hide'); return; }
+  el.classList.remove('hide');
+  const f = S.filters, st = S.settings;
+  const pairs = [...new Set([...st.pairs, ...all().map(t => t.pair)])].filter(Boolean);
+  const cons = [...new Set([...st.concepts, ...all().map(t => t.concept)])].filter(Boolean);
+  const opt = (arr, v) => arr.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('');
+  el.innerHTML = `
+    <label>Dönem <select data-f="range">
+      ${[['all','Tümü'],['7','Son 7 gün'],['30','Son 30 gün'],['90','Son 90 gün'],['month','Bu ay'],['ytd','Bu yıl']].map(([v, l]) => `<option value="${v}" ${f.range === v ? 'selected' : ''}>${l}</option>`).join('')}
+    </select></label>
+    <label>Parite <select data-f="pair"><option value="">Tümü</option>${opt(pairs, f.pair)}</select></label>
+    <label>Konsept <select data-f="concept"><option value="">Tümü</option>${opt(cons, f.concept)}</select></label>
+    <label>Yön <select data-f="dir"><option value="">Tümü</option><option value="long" ${f.dir === 'long' ? 'selected' : ''}>Long</option><option value="short" ${f.dir === 'short' ? 'selected' : ''}>Short</option></select></label>
+    <span class="sp"></span>
+    ${(f.range !== 'all' || f.pair || f.concept || f.dir) ? '<button class="btn sm ghost" data-act="clearFilters">Filtreleri temizle</button>' : ''}
+`;
+}
+function emptyState(){
+  return `<div class="card empty">
+    <h2>Jurnaline hoş geldin 👋</h2>
+    <p class="mut" style="max-width:560px;margin:0 auto 18px">Her işlemi giriş nedeni, aldığın teyitler ve sonuçla kaydet. SL olan işlemlerde “eksik neydi?” sorusunu işaretle. Jurnal; hangi paritede, hangi konseptte ve hangi teyitlerle daha başarılı olduğunu hesaplayıp sana yorumlayacak.</p>
+    <button class="btn primary" data-act="new">+ İlk işlemini ekle</button>
+    <button class="btn" data-act="demo" style="margin-left:8px">Örnek verilerle dene</button>
+  </div>`;
+}
+function kpi(l, v, s, c = ''){ return `<div class="card kpi"><div class="l">${l}</div><div class="v ${c}">${v}</div>${s ? `<div class="s">${s}</div>` : ''}</div>`; }
+
+function renderPanel(m){
+  const list = applyFilters(all());
+  if (!all().length) { m.innerHTML = emptyState(); return; }
+  const A = stats(list); const open = list.filter(t => t.result === 'OPEN').length;
+  const ins = buildInsights(list);
+  const top = [...ins.gelistir.slice(0, 2).map(x => ({ ...x, k: 'b' })), ...ins.guclu.slice(0, 2).map(x => ({ ...x, k: 'g' })), ...ins.kural.slice(0, 1).map(x => ({ ...x, k: 'r' }))];
+  const recent = sortByDate(list).reverse().slice(0, 8);
+  m.innerHTML = `
+  <div class="grid g-kpi">
+    ${kpi('Net sonuç', fmtR(A.tot, 1), A.hasPnl ? fmtM(A.pnl) : '', cls(A.tot))}
+    ${kpi('Kazanma oranı', fmtP(A.wr), `${A.w}K · ${A.l}Z · ${A.b} BE`)}
+    ${kpi('Beklenti / işlem', fmtR(A.exp), 'ortalama R', cls(A.exp))}
+    ${kpi('Profit factor', fmtPF(A.pf), A.pf != null && A.pf < 1 ? 'zarar ediyor' : '', A.pf == null ? '' : A.pf >= 1 ? 'pos' : 'neg')}
+    ${kpi('Ort. kazanç / kayıp', `<span class="pos">${fmtR(A.avgW, 1)}</span> <span class="dim">/</span> <span class="neg">${fmtR(A.avgL, 1)}</span>`, '')}
+    ${kpi('Maks. düşüş', fmtR(A.maxDD, 1), `en uzun seri: ${A.maxWS}K / ${A.maxLS}Z`, A.maxDD < 0 ? 'neg' : '')}
+    ${kpi('İşlem', A.n, open ? `${open} açık işlem` : 'kapanmış', '')}
+    ${kpi('Güncel seri', A.cur ? `${A.cur.n} ${A.cur.k === 'win' ? 'kazanç' : 'kayıp'}` : '–', '', A.cur ? (A.cur.k === 'win' ? 'pos' : 'neg') : '')}
+  </div>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card"><h3>Sermaye eğrisi <span class="seg" style="font-size:12px"><button class="${S.eqMode === 'R' ? 'on' : ''}" data-act="eq" data-v="R">R</button><button class="${S.eqMode === 'M' ? 'on' : ''}" data-act="eq" data-v="M">${esc(cur())}</button></span></h3><div id="eqChart" class="chart"></div></div>
+    <div class="card"><h3>Takvim ${calNav()}</h3>${calendar(list)}</div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card"><h3>Öne çıkan yorumlar <button class="btn sm ghost" data-act="go" data-v="koc">Tümü →</button></h3>${top.length ? top.map(insHtml).join('') : '<p class="mut">Yorum için biraz daha veri gerekiyor.</p>'}</div>
+    <div class="card"><h3>Son işlemler <button class="btn sm ghost" data-act="go" data-v="islemler">Tümü →</button></h3>${tradeTable(recent, true)}</div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card"><h3>Pariteler <small>toplam R</small></h3>${miniBars(groupStats(list, t => t.pair))}</div>
+    <div class="card"><h3>Konseptler <small>toplam R</small></h3>${miniBars(groupStats(list, t => t.concept))}</div>
+  </div>`;
+  equityChart($('#eqChart'), list);
+}
+function insHtml(x){
+  const icon = { g: '✓', b: '!', r: '➜', i: 'i' }[x.k];
+  return `<div class="ins"><div class="ic ${x.k}">${icon}</div><div><h5>${esc(x.title)}</h5><p>${esc(x.text)}</p></div></div>`;
+}
+function miniBars(gs){
+  if (!gs.length) return '<p class="mut">Veri yok.</p>';
+  const MIN = +S.settings.minSample || 5;
+  const mx = Math.max(...gs.map(g => Math.abs(g.tot)), 0.01);
+  return `<table class="tbl"><tbody>${gs.slice(0, 8).map(g => `<tr class="${g.n < MIN ? 'low' : ''}"><td>${esc(g.key)}</td><td class="n dim">${g.n}</td><td class="n">${fmtP(g.wr)}</td>${barTd(g.tot, mx)}<td class="n ${cls(g.tot)}">${fmtR(g.tot, 1)}</td></tr>`).join('')}</tbody></table>`;
+}
+function barTd(v, mx){
+  const w = Math.min(50, Math.abs(v) / mx * 50);
+  const style = v >= 0 ? `left:50%;width:${w}%;background:var(--win)` : `right:50%;width:${w}%;background:var(--loss)`;
+  return `<td class="barcell"><span class="mid"></span><span class="b" style="${style}"></span></td>`;
+}
+function tradeTable(list, compact){
+  if (!list.length) return '<p class="mut">İşlem yok.</p>';
+  return `<div class="scroll"><table class="tbl"><thead><tr><th>Tarih</th><th>Parite</th><th>Yön</th><th>Konsept</th>${compact ? '' : '<th>Teyit</th><th>Seans</th><th>Hatalar</th>'}<th>Sonuç</th><th class="n">R</th>${compact ? '' : '<th class="n">K/Z</th>'}</tr></thead><tbody>
+  ${list.map(t => { const o = outcome(t); const p = pnlOf(t); return `<tr class="click" data-act="view" data-id="${esc(t.id)}">
+    <td class="mono dim" style="font-size:12px;white-space:nowrap">${fmtDate(t.date)}</td>
+    <td><b>${esc(t.pair)}</b></td>
+    <td><span class="dir ${t.dir === 'short' ? 'short' : 'long'}">${t.dir === 'long' ? '▲ LONG' : '▼ SHORT'}</span></td>
+    <td>${esc(t.concept || '–')}</td>
+    ${compact ? '' : `<td class="n">${(t.confs || []).length}</td><td class="mut">${esc(t.session || '')}</td><td>${(t.mistakes || []).filter(x => x !== CLEAN).slice(0, 2).map(x => `<span class="tag">${esc(x)}</span>`).join('')}${(t.mistakes || []).filter(x => x !== CLEAN).length > 2 ? '<span class="tag">…</span>' : ''}</td>`}
+    <td><span class="res ${o}">${{ win: 'KAZANÇ', loss: 'SL', be: 'BE', open: 'AÇIK' }[o]}</span></td>
+    <td class="n ${cls(t.r)}">${t.r != null && t.result !== 'OPEN' ? fmtR(t.r) : '–'}</td>
+    ${compact ? '' : `<td class="n ${cls(p)}">${p != null && t.result !== 'OPEN' ? fmtM(p) : '–'}</td>`}
+  </tr>`; }).join('')}</tbody></table></div>`;
+}
+function equityChart(el, list){
+  const c = sortByDate(list.filter(isClosed));
+  if (c.length < 2) { el.innerHTML = '<p class="mut">Eğri için en az 2 kapanmış işlem gerekli.</p>'; return; }
+  const useM = S.eqMode === 'M';
+  let acc = useM ? (+S.settings.startBalance || 0) : 0;
+  const pts = [{ v: acc, t: null }];
+  for (const t of c) { acc += useM ? (pnlOf(t) ?? 0) : t.r; pts.push({ v: acc, t }); }
+  const W = 800, H = 240, P = { l: 52, r: 12, t: 12, b: 24 };
+  const vs = pts.map(p => p.v); let lo = Math.min(...vs), hi = Math.max(...vs); if (hi === lo) { hi += 1; lo -= 1; }
+  const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+  const X = i => P.l + i / (pts.length - 1) * (W - P.l - P.r), Y = v => P.t + (hi - v) / (hi - lo) * (H - P.t - P.b);
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(p.v).toFixed(1)}`).join('');
+  const base = useM ? (+S.settings.startBalance || 0) : 0;
+  const by = Math.max(P.t, Math.min(H - P.b, Y(base)));
+  const area = `${line}L${X(pts.length - 1).toFixed(1)},${by}L${X(0)},${by}Z`;
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => lo + (hi - lo) * f);
+  const fmtT = v => useM ? Math.round(v).toLocaleString('tr-TR') : v.toFixed(1);
+  const end = pts[pts.length - 1].v, up = end >= base;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Sermaye eğrisi">
+    <defs><linearGradient id="eqg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${up ? '#22c55e' : '#ef4444'}" stop-opacity=".28"/><stop offset="1" stop-color="${up ? '#22c55e' : '#ef4444'}" stop-opacity="0"/></linearGradient></defs>
+    ${ticks.map(v => `<line x1="${P.l}" x2="${W - P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="#1a2532"/><text x="${P.l - 6}" y="${Y(v) + 4}" fill="#5d6d82" font-size="11" text-anchor="end" font-family="JetBrains Mono">${fmtT(v)}</text>`).join('')}
+    <line x1="${P.l}" x2="${W - P.r}" y1="${by}" y2="${by}" stroke="#3b4c63" stroke-dasharray="4 4"/>
+    <path d="${area}" fill="url(#eqg)"/>
+    <path d="${line}" fill="none" stroke="${up ? '#22c55e' : '#ef4444'}" stroke-width="2" stroke-linejoin="round"/>
+    <text x="${P.l}" y="${H - 6}" fill="#5d6d82" font-size="11">${fmtDate(c[0].date).slice(0, 8)}</text>
+    <text x="${W - P.r}" y="${H - 6}" fill="#5d6d82" font-size="11" text-anchor="end">${fmtDate(c[c.length - 1].date).slice(0, 8)}</text>
+    <circle id="eqDot" r="4" fill="#38bdf8" style="display:none"/>
+    <rect x="${P.l}" y="0" width="${W - P.l - P.r}" height="${H}" fill="transparent" id="eqHit"/>
+  </svg><div class="tip" id="eqTip"></div>`;
+  const svg = el.querySelector('svg'), dot = el.querySelector('#eqDot'), tip = el.querySelector('#eqTip');
+  svg.addEventListener('mousemove', e => {
+    const r = svg.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width * W;
+    const i = Math.max(0, Math.min(pts.length - 1, Math.round((x - P.l) / (W - P.l - P.r) * (pts.length - 1))));
+    const p = pts[i]; dot.setAttribute('cx', X(i)); dot.setAttribute('cy', Y(p.v)); dot.style.display = '';
+    tip.style.display = 'block';
+    tip.innerHTML = p.t ? `<b>${esc(p.t.pair)}</b> · ${fmtDate(p.t.date)}<br>İşlem: <span class="${cls(p.t.r)}">${fmtR(p.t.r)}</span> · Toplam: <span class="mono">${useM ? fmtM(p.v - base) : fmtR(p.v)}</span>` : 'Başlangıç';
+    const px = X(i) / W * r.width, py = Y(p.v) / H * r.height;
+    tip.style.left = Math.min(r.width - 200, Math.max(0, px + 12)) + 'px'; tip.style.top = Math.max(0, py - 50) + 'px';
+  });
+  svg.addEventListener('mouseleave', () => { dot.style.display = 'none'; tip.style.display = 'none'; });
+}
+function calNav(){
+  const ym = S.calMonth || nowLocal().slice(0, 7); const [y, mo] = ym.split('-').map(Number);
+  const name = new Date(y, mo - 1, 1).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
+  return `<span style="display:flex;gap:4px;align-items:center"><button class="btn sm ghost" data-act="cal" data-v="-1">‹</button><small style="min-width:96px;text-align:center">${name}</small><button class="btn sm ghost" data-act="cal" data-v="1">›</button></span>`;
+}
+function calendar(list){
+  const ym = S.calMonth || nowLocal().slice(0, 7); const [y, mo] = ym.split('-').map(Number);
+  const days = new Date(y, mo, 0).getDate(); const first = (new Date(y, mo - 1, 1).getDay() + 6) % 7;
+  const byDay = {}; list.filter(isClosed).forEach(t => { const d = (t.date || '').slice(0, 10); if (d.startsWith(ym)) { byDay[d] = byDay[d] || { r: 0, n: 0 }; byDay[d].r += t.r; byDay[d].n++; } });
+  const mx = Math.max(1, ...Object.values(byDay).map(v => Math.abs(v.r)));
+  let h = ['Pt','Sa','Ça','Pe','Cu','Ct','Pa'].map(d => `<div class="h">${d}</div>`).join('');
+  for (let i = 0; i < first; i++) h += '<div class="d x"></div>';
+  let mR = 0, mN = 0;
+  for (let d = 1; d <= days; d++) {
+    const key = `${ym}-${String(d).padStart(2, '0')}`; const v = byDay[key];
+    let bg = '';
+    if (v) { mR += v.r; mN += v.n; const a = 0.15 + 0.55 * Math.min(1, Math.abs(v.r) / mx); bg = `background:${v.r >= 0 ? `rgba(34,197,94,${a})` : `rgba(239,68,68,${a})`};border-color:transparent`; }
+    h += `<div class="d" style="${bg}" title="${v ? `${v.n} işlem, ${fmtR(v.r)}` : ''}"><span class="${v ? '' : 'dim'}">${d}</span>${v ? `<span class="r">${fmtR(v.r, 1)}</span>` : ''}</div>`;
+  }
+  return `<div class="cal">${h}</div><div class="mut" style="font-size:12px;margin-top:8px">Bu ay: ${mN} işlem, <span class="${cls(mR)} mono">${fmtR(mR, 1)}</span></div>`;
+}
+
+function renderTrades(m){
+  if (!all().length) { m.innerHTML = emptyState(); return; }
+  let list = sortByDate(applyFilters(all())).reverse();
+  const q = S.q.trim().toLocaleLowerCase('tr');
+  if (q) list = list.filter(t => [t.pair, t.concept, t.notes, t.lesson, t.session, ...(t.confs || []), ...(t.mistakes || []), ...(t.tags || [])].join(' ').toLocaleLowerCase('tr').includes(q));
+  if (S.qRes) list = list.filter(t => outcome(t) === S.qRes);
+  const A = stats(list);
+  m.innerHTML = `<div class="card">
+    <h3><span>İşlemler <small>${list.length} kayıt · ${fmtR(A.tot, 1)} · ${fmtP(A.wr)}</small></span>
+      <span style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="search" id="q" placeholder="Ara: not, teyit, hata, etiket…" value="${esc(S.q)}" style="width:240px">
+        <select id="qRes"><option value="">Tüm sonuçlar</option>${[['win','Kazanç'],['loss','SL / Kayıp'],['be','BE'],['open','Açık']].map(([v, l]) => `<option value="${v}" ${S.qRes === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      </span></h3>
+    ${tradeTable(list, false)}
+  </div>`;
+  const qi = $('#q'); qi.addEventListener('input', () => { S.q = qi.value; const pos = qi.selectionStart; renderTrades(m); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); });
+  $('#qRes').addEventListener('change', e => { S.qRes = e.target.value; renderTrades(m); });
+}
+
+function statTable(title, gs, sub){
+  const MIN = +S.settings.minSample || 5;
+  if (!gs.length) return `<div class="card"><h3>${title}</h3><p class="mut">Veri yok.</p></div>`;
+  const mx = Math.max(...gs.map(g => Math.abs(g.tot)), 0.01);
+  return `<div class="card"><h3>${title}${sub ? `<small>${sub}</small>` : ''}</h3><div class="scroll"><table class="tbl">
+    <thead><tr><th></th><th class="n">İşlem</th><th class="n">Kazanma</th><th class="n">Ort. R</th><th class="n">PF</th><th></th><th class="n">Toplam</th></tr></thead>
+    <tbody>${gs.map(g => `<tr class="${g.n < MIN ? 'low' : ''}" title="${g.n < MIN ? 'Düşük örneklem – dikkatle yorumla' : ''}"><td>${esc(g.key)}${g.n < MIN ? ' <span class="tag low">az veri</span>' : ''}</td><td class="n">${g.n}</td><td class="n">${fmtP(g.wr)}</td><td class="n ${cls(g.exp)}">${fmtR(g.exp)}</td><td class="n">${fmtPF(g.pf)}</td>${barTd(g.tot, mx)}<td class="n ${cls(g.tot)}">${fmtR(g.tot, 1)}</td></tr>`).join('')}</tbody>
+  </table></div></div>`;
+}
+function renderAnalysis(m){
+  const list = applyFilters(all());
+  if (!all().length) { m.innerHTML = emptyState(); return; }
+  const MIN = +S.settings.minSample || 5;
+  const imp = confImpact(list); const miss = missingInLosses(list); const ms = mistakeStats(list);
+  const mxI = Math.max(0.01, ...imp.map(x => Math.abs(x.dExp ?? 0)));
+  const confCard = `<div class="card"><h3>Teyitlerin etkisi <small>teyit varken vs yokken</small></h3><div class="scroll"><table class="tbl">
+    <thead><tr><th>Teyit</th><th class="n">Kullanım</th><th class="n">Varken kazanma</th><th class="n">Yokken</th><th class="n">Varken ort.</th><th class="n">Yokken</th><th></th><th class="n">Etki</th></tr></thead>
+    <tbody>${imp.map(x => `<tr class="${x.yes.n < MIN || x.no.n < MIN ? 'low' : ''}"><td>${esc(x.name)}</td><td class="n">${x.yes.n} <span class="dim">(${fmtP(x.use)})</span></td><td class="n">${fmtP(x.yes.wr)}</td><td class="n dim">${fmtP(x.no.wr)}</td><td class="n ${cls(x.yes.exp)}">${fmtR(x.yes.exp)}</td><td class="n dim">${fmtR(x.no.exp)}</td>${x.dExp == null ? '<td></td>' : barTd(x.dExp, mxI)}<td class="n ${cls(x.dExp)}">${fmtR(x.dExp)}</td></tr>`).join('') || '<tr><td colspan="8" class="mut">Teyit verisi yok.</td></tr>'}</tbody></table></div>
+    <p class="dim" style="font-size:12px;margin:8px 0 0">Etki = teyit varken ortalama R − yokken ortalama R. Pozitif ve büyük olanlar senin gerçek filtrelerin.</p></div>`;
+  const missCard = `<div class="card"><h3>SL’lerde eksik olan teyitler <small>kayıplarda yok / kazançlarda yok</small></h3>${miss.length ? `<table class="tbl"><thead><tr><th>Teyit</th><th class="n">SL’lerde eksik</th><th class="n">Kazançlarda eksik</th><th class="n">Fark</th></tr></thead><tbody>${miss.slice(0, 10).map(x => `<tr><td>${esc(x.name)}</td><td class="n neg">${fmtP(x.mL)}</td><td class="n">${fmtP(x.mW)}</td><td class="n ${x.gap > 0.15 ? 'neg' : 'dim'}">${x.gap > 0 ? '+' : ''}${Math.round(x.gap * 100)} puan</td></tr>`).join('')}</tbody></table><p class="dim" style="font-size:12px;margin:8px 0 0">Fark büyükse: SL olan işlemlerde bu teyit genellikle yoktu, kazananlarda vardı.</p>` : '<p class="mut">Henüz SL işlemi yok.</p>'}</div>`;
+  const mxM = Math.max(0.01, ...ms.map(x => Math.abs(x.cost)));
+  const mistakeCard = `<div class="card"><h3>Hatalar ve maliyetleri <small>hangi hata ne kaybettirdi</small></h3>${ms.length ? `<table class="tbl"><thead><tr><th>Hata / eksik</th><th class="n">Kez</th><th class="n">SL payı</th><th class="n">Ort. R</th><th></th><th class="n">Toplam</th></tr></thead><tbody>${ms.map(x => `<tr><td>${esc(x.name)}</td><td class="n">${x.n}</td><td class="n">${fmtP(x.lossShare)}</td><td class="n ${cls(x.s.exp)}">${fmtR(x.s.exp)}</td>${barTd(x.cost, mxM)}<td class="n ${cls(x.cost)}">${fmtR(x.cost, 1)}</td></tr>`).join('')}</tbody></table>` : '<p class="mut">Henüz hata işaretlenmemiş.</p>'}</div>`;
+  // Heatmap
+  const pairs = groupStats(list, t => t.pair).map(g => g.key), cons = groupStats(list, t => t.concept).map(g => g.key);
+  let heat = '<p class="mut">Veri yok.</p>';
+  if (pairs.length && cons.length) {
+    heat = `<div class="scroll"><table class="tbl heat"><thead><tr><th></th>${pairs.map(p => `<th style="text-align:center">${esc(p)}</th>`).join('')}</tr></thead><tbody>${cons.map(cn => `<tr><td>${esc(cn)}</td>${pairs.map(p => { const s = stats(list.filter(t => t.pair === p && t.concept === cn)); if (!s.n) return '<td class="c dim">·</td>'; const a = Math.min(0.75, 0.15 + Math.abs(s.exp) * 0.35); const bg = s.exp >= 0 ? `rgba(34,197,94,${a})` : `rgba(239,68,68,${a})`; return `<td class="c" style="background:${bg};${s.n < MIN ? 'opacity:.55' : ''}" title="${s.n} işlem, ${fmtP(s.wr)}">${fmtR(s.exp, 1)}<small>${s.n} · ${fmtP(s.wr)}</small></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+  m.innerHTML = `
+    <div class="grid g2">
+      ${statTable('Paritelere göre', groupStats(list, t => t.pair))}
+      ${statTable('Konseptlere göre', groupStats(list, t => t.concept))}
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Konsept × Parite <small>hücre: ortalama R · işlem · kazanma</small></h3>${heat}</div>
+    <div style="margin-top:14px">${confCard}</div>
+    <div class="grid g2" style="margin-top:14px">${missCard}${mistakeCard}</div>
+    <div class="grid g2" style="margin-top:14px">
+      ${statTable('Teyit sayısına göre', groupStats(list, confBucket).sort((a, b) => a.key.localeCompare(b.key)))}
+      ${statTable('Seanslara göre', groupStats(list, t => t.session))}
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      ${statTable('Haftanın günleri', groupStats(list, wdKey).sort((a, b) => ((WD.indexOf(a.key) + 6) % 7) - ((WD.indexOf(b.key) + 6) % 7)))}
+      ${statTable('Saat dilimi', groupStats(list, hourKey).sort((a, b) => a.key.localeCompare(b.key)), 'giriş saati')}
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      ${statTable('Yön', groupStats(list, t => t.dir === 'long' ? 'Long' : t.dir === 'short' ? 'Short' : null))}
+      ${statTable('Setup kalitesi', groupStats(list, t => t.grade).sort((a, b) => ['A+','A','B','C'].indexOf(a.key) - ['A+','A','B','C'].indexOf(b.key)))}
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      ${statTable('Duygu durumu', groupStats(list, t => t.emotion))}
+      ${statTable('Plana uyum', groupStats(list, t => t.plan))}
+    </div>`;
+}
+
+function renderCoach(m){
+  const list = applyFilters(all());
+  if (!all().length) { m.innerHTML = emptyState(); return; }
+  const ins = buildInsights(list);
+  const sec = (t, arr, k, emptyMsg) => `<div class="card"><h3>${t} <small>${arr.length}</small></h3>${arr.length ? arr.map(x => insHtml({ ...x, k })).join('') : `<p class="mut">${emptyMsg}</p>`}</div>`;
+  const coach = S.coach && !S.demo ? S.coach : (S.demo ? S.demoCoach : null);
+  m.innerHTML = `
+    ${sec('Genel durum', ins.genel, 'i', '–')}
+    <div class="grid g2" style="margin-top:14px">
+      ${sec('Güçlü yönlerin', ins.guclu, 'g', 'Henüz istatistiksel olarak öne çıkan bir güçlü alan yok (minimum örneklem: ' + S.settings.minSample + ').')}
+      ${sec('Geliştirmen gerekenler', ins.gelistir, 'b', 'Belirgin bir zayıf nokta görünmüyor. 👏')}
+    </div>
+    <div style="margin-top:14px">${sec('Önerilen kurallar', ins.kural, 'r', 'Kural önerisi için daha fazla veri gerekiyor.')}</div>
+    <div class="card" style="margin-top:14px">
+      <h3><span>Claude koç yorumu <small>${coach ? 'son analiz: ' + fmtDate(coach.at) : 'yapay zekâ ile kişisel değerlendirme'}</small></span>
+      ${S.aiAvailable ? `<button class="btn primary sm" data-act="ai" id="aiBtn">${coach ? 'Yeniden analiz et' : 'Analiz et'}</button>` : ''}</h3>
+      <div id="aiOut" class="ai">${coach ? mdLite(coach.text) : `<p class="mut">${S.aiAvailable ? 'İstatistiklerini, SL notlarını ve hata kayıtlarını Claude’a göndererek kişisel bir koç değerlendirmesi al. Filtreler (dönem/parite/konsept) analize uygulanır.' : 'Claude koç yorumu bu görünümde kullanılamıyor. Yukarıdaki otomatik yorumlar yine de tüm verine göre hesaplanıyor.'}</p>`}</div>
+    </div>`;
+}
+function mdLite(s){
+  const lines = esc(s || '').split('\n'); let html = '', inList = false;
+  const inline = x => x.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`(.+?)`/g, '<code>$1</code>');
+  for (let ln of lines) {
+    const li = ln.match(/^\s*(?:[-*•]|\d+\.)\s+(.*)/);
+    if (li) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${inline(li[1])}</li>`; continue; }
+    if (inList) { html += '</ul>'; inList = false; }
+    if (/^#{1,2}\s/.test(ln)) html += `<h3>${inline(ln.replace(/^#+\s/, ''))}</h3>`;
+    else if (/^#{3,}\s/.test(ln)) html += `<h4>${inline(ln.replace(/^#+\s/, ''))}</h4>`;
+    else if (ln.trim()) html += `<p>${inline(ln)}</p>`;
+  }
+  if (inList) html += '</ul>';
+  return html;
+}
+let aiCtrl = null;
+async function runAI(){
+  const sample = await getCap('sample'); if (!sample) { toast('Claude analizi şu an kullanılamıyor.', true); return; }
+  const list = applyFilters(all()); const A = stats(list);
+  if (A.n < 5) { toast('Analiz için en az 5 kapanmış işlem gerekli.', true); return; }
+  const pick = s => ({ n: s.n, kazanma: s.wr == null ? null : r2(s.wr), ortR: s.exp == null ? null : r2(s.exp), toplamR: r2(s.tot), pf: s.pf === Infinity ? 'sonsuz' : s.pf == null ? null : r2(s.pf) });
+  const grp = fn => groupStats(list, fn).map(g => ({ grup: g.key, ...pick(g) }));
+  const losses = sortByDate(list.filter(t => outcome(t) === 'loss')).reverse().slice(0, 15).map(t => ({ tarih: t.date, parite: t.pair, yon: t.dir, konsept: t.concept, teyitler: t.confs, hatalar: t.mistakes, kalite: t.grade, duygu: t.emotion, plan: t.plan, r: t.r, neden: (t.notes || '').slice(0, 220), ders: (t.lesson || '').slice(0, 220) }));
+  const data = {
+    minimumOrneklem: +S.settings.minSample || 5, filtre: S.filters,
+    genel: { ...pick(A), ortKazancR: A.avgW && r2(A.avgW), ortKayipR: A.avgL && r2(A.avgL), maksDususR: r2(A.maxDD), enUzunKayipSerisi: A.maxLS },
+    parite: grp(t => t.pair), konsept: grp(t => t.concept), seans: grp(t => t.session), gun: grp(wdKey), yon: grp(t => t.dir),
+    duygu: grp(t => t.emotion), plan: grp(t => t.plan), kalite: grp(t => t.grade), teyitSayisi: grp(confBucket),
+    teyitEtkisi: confImpact(list).map(x => ({ teyit: x.name, varken: pick(x.yes), yokken: pick(x.no), etkiR: r2(x.dExp) })),
+    sllerdeEksikTeyit: missingInLosses(list).slice(0, 8).map(x => ({ teyit: x.name, sllerdeYokOrani: r2(x.mL), kazanclardaYokOrani: x.mW == null ? null : r2(x.mW) })),
+    hatalar: mistakeStats(list).map(x => ({ hata: x.name, adet: x.n, toplamR: r2(x.cost), sllerdekiPay: r2(x.lossShare) })),
+    sonSLler: losses
+  };
+  const prompt = `Sen deneyimli, dürüst ve destekleyici bir trading koçusun. Aşağıda bir traderın işlem jurnalinden çıkarılmış istatistikler JSON olarak var (R = risk birimi; kazanma = oran 0-1).
+Görev: Verilere dayanarak Türkçe, net ve uygulanabilir bir değerlendirme yaz. Sadece verilen rakamları kullan, rakam uydurma. Örneklem minimumOrneklem'den küçük olan gruplar için "az veri" uyarısı yap ve kesin yargı verme. "sonSLler" içindeki neden/ders notlarından tekrar eden kalıpları çıkar.
+Biçim (markdown, toplam en fazla ~450 kelime):
+## Genel durum
+2-3 cümle.
+## Güçlü yönlerin
+- madde
+## SL'lerinin ortak noktası
+- kayıplarda eksik olan teyitler ve tekrar eden hatalar
+## Parite ve konsept değerlendirmesi
+- hangi paritelerde/konseptlerde daha başarılı, hangilerinde değil
+## Geliştirmen gerekenler (öncelik sırasıyla)
+1. en fazla 5 madde
+## Sonraki 20 işlem için kurallar
+- 3-5 net ve ölçülebilir kural
+Yatırım tavsiyesi verme; sadece traderın kendi performansını yorumla.
+
+VERİ:
+${JSON.stringify(data)}`;
+  const out = $('#aiOut'), btn = $('#aiBtn');
+  if (aiCtrl) aiCtrl.abort(); aiCtrl = new AbortController();
+  if (btn) { btn.disabled = true; btn.textContent = 'Analiz ediliyor…'; }
+  out.innerHTML = '<p class="mut">Claude verilerini inceliyor…</p>';
+  try {
+    const res = await sample(prompt, { modelTier: 'default', signal: aiCtrl.signal, onText: ({ text }) => { const o = $('#aiOut'); if (o && text) o.innerHTML = mdLite(text); } });
+    const c = { text: res.text, at: nowLocal() };
+    if (S.demo) S.demoCoach = c; else await Store.saveCoach(c);
+    const o = $('#aiOut'); if (o) o.innerHTML = mdLite(res.text);
+  } catch (e) {
+    const o = $('#aiOut');
+    if (e && e.code === 'not_granted') { S.aiAvailable = false; if (o) o.innerHTML = '<p class="mut">Claude analizine izin verilmedi.</p>'; }
+    else if (e && e.code === 'rate_limited') { if (o) o.innerHTML = '<p class="mut">Şu an çok fazla istek var; birkaç dakika sonra tekrar dene.</p>'; }
+    else if (e && e.name === 'AbortError') {}
+    else if (o) o.innerHTML = `<p class="mut">Analiz tamamlanamadı. ${e && e.text ? '' : 'Tekrar deneyebilirsin.'}</p>${e && e.text ? mdLite(e.text) : ''}`;
+  } finally { const b = $('#aiBtn'); if (b) { b.disabled = false; b.textContent = 'Yeniden analiz et'; } }
+}
+
+function renderSettings(m){
+  const st = S.settings;
+  const listEd = (key, title, hint) => `<div class="card"><h3>${title}<small>${st[key].length}</small></h3>${hint ? `<p class="dim" style="margin:-4px 0 10px;font-size:12px">${hint}</p>` : ''}
+    <div class="listed">${st[key].map((x, i) => `<span class="tag">${esc(x)}<button data-act="rmItem" data-k="${key}" data-i="${i}" title="Kaldır">×</button></span>`).join('')}</div>
+    <div style="display:flex;gap:8px;margin-top:10px"><input type="text" id="add_${key}" placeholder="Yeni ekle…" style="flex:1"><button class="btn sm" data-act="addItem" data-k="${key}">Ekle</button></div></div>`;
+  m.innerHTML = `
+  <div class="grid g2">
+    <div class="card"><h3>Hesap ve analiz</h3>
+      <div class="frow">
+        <label class="fld"><span>Para birimi</span><input type="text" id="s_currency" value="${esc(st.currency)}" maxlength="4"></label>
+        <label class="fld"><span>Başlangıç bakiyesi</span><input type="number" id="s_startBalance" value="${esc(st.startBalance)}"></label>
+        <label class="fld"><span>Varsayılan risk (işlem başı ${esc(st.currency)})</span><input type="number" id="s_defaultRisk" value="${esc(st.defaultRisk)}"></label>
+        <label class="fld"><span>Minimum örneklem</span><input type="number" id="s_minSample" min="2" max="50" value="${esc(st.minSample)}"></label>
+      </div>
+      <p class="dim" style="font-size:12px;margin:0">Minimum örneklem: bir parite/konsept/teyit hakkında yorum yapılması için gereken en az işlem sayısı.</p>
+    </div>
+    <div class="card"><h3>Veri ve yedek</h3>
+      <p class="mut" style="margin-top:0">${S.demo ? 'Demo modundasın; değişiklikler kaydedilmez.' : S.backend === 'cloud' ? 'İşlemlerin hesabına özel olarak saklanıyor; sadece sen görebilirsin.' : 'İşlemlerin bu tarayıcıda saklanıyor. Tarayıcı verisini silersen kaybolur — düzenli yedek al.'} Toplam ${all().length} işlem.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" data-act="exportJSON">Yedek indir (JSON)</button>
+        <button class="btn" data-act="exportCSV">Excel/CSV indir</button>
+        <button class="btn" data-act="copyJSON">Yedeği kopyala</button>
+        <label class="btn">Yedekten yükle<input type="file" id="importFile" accept=".json,application/json" hidden></label>
+        <button class="btn" data-act="demo">${S.demo ? 'Demoyu yenile' : 'Örnek verilerle dene'}</button>
+        <button class="btn danger" data-act="wipe" ${S.demo ? 'disabled' : ''}>Tüm işlemleri sil</button>
+      </div>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    ${listEd('pairs', 'Pariteler')}
+    ${listEd('concepts', 'Konseptler / setuplar')}
+    ${listEd('confirmations', 'Teyit listesi', 'İşlem girerken işaretlediğin teyitler. Analiz her birinin sonuca etkisini ölçer.')}
+    ${listEd('mistakes', 'Hata / eksik listesi', 'SL olan işlemlerde “eksik neydi?” için seçenekler.')}
+    ${listEd('sessions', 'Seanslar')}
+    ${listEd('emotions', 'Duygu durumları')}
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Uygulama olarak kur</h3>
+    <div class="grid g2" style="gap:10px">
+      <div><b>💻 Masaüstü (Windows / Mac / Linux)</b><p class="mut" style="margin:4px 0 0">Chrome veya Edge’de adres çubuğundaki <b>yükle</b> simgesine tıkla ya da GitHub’daki <a href="https://github.com/zelisss/trade-jurnal/releases/latest" target="_blank" rel="noopener">son sürümden</a> kurulum dosyasını indir (.exe / .dmg / .AppImage).</p></div>
+      <div><b>📱 Telefon</b><p class="mut" style="margin:4px 0 0"><b>Android:</b> Chrome menüsü → <i>Uygulamayı yükle</i> ya da sürümler sayfasındaki <b>.apk</b>.<br><b>iPhone:</b> Safari’de <a href="https://zelisss.github.io/Trade-jurnal/" target="_blank" rel="noopener">zelisss.github.io/Trade-jurnal</a> → Paylaş → <i>Ana Ekrana Ekle</i>.</p></div>
+    </div>
+    <p class="dim" style="font-size:12px;margin:10px 0 0">Her cihaz kendi verisini saklar. Cihazlar arası taşımak için “Yedek indir” → diğer cihazda “Yedekten yükle”.</p>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Kısayollar</h3><p class="mut" style="margin:0"><b>N</b> yeni işlem · <b>Esc</b> paneli kapat · Kaydet: <b>Ctrl/⌘ + Enter</b></p></div>`;
+  ['currency', 'startBalance', 'defaultRisk', 'minSample'].forEach(k => {
+    $('#s_' + k).addEventListener('change', e => { const v = e.target.value; st[k] = k === 'currency' ? (v || '$') : (num(v) ?? DEF[k]); Store.saveSettings(); toast('Ayar kaydedildi'); });
+  });
+  Object.keys(DEF).filter(k => Array.isArray(DEF[k])).forEach(k => { const i = $('#add_' + k); if (i) i.addEventListener('keydown', e => { if (e.key === 'Enter') addItem(k); }); });
+  $('#importFile').addEventListener('change', importJSON);
+}
+function addItem(k){
+  const i = $('#add_' + k); const v = (i.value || '').trim(); if (!v) return;
+  if (!S.settings[k].includes(v)) { S.settings[k].push(v); Store.saveSettings(); }
+  render(); setTimeout(() => { const n = $('#add_' + k); if (n) n.focus(); });
+}
+
+/* ============ İşlem formu ============ */
+let F = null; let rTouched = false, pnlTouched = false, sessTouched = false;
+function openForm(t){
+  const st = S.settings;
+  F = t ? sanitizeTrade(clone(t)) : { id: uid(), date: nowLocal(), pair: S.filters.pair || '', dir: 'long', session: sessionOf(nowLocal()), htf: 'H4', ltf: 'M5', concept: S.filters.concept || '', confs: [], grade: 'A', notes: '', entry: null, sl: null, tp: null, exit: null, risk: st.defaultRisk, result: 'OPEN', r: null, pnl: null, emotion: 'Sakin', plan: 'Evet', mistakes: [], lesson: '', imgs: [], tags: [] };
+  pnlTouched = !!t && F.pnl != null; sessTouched = !!t;
+  // Düzenlemede: R fiyatlardan hesaplanamıyorsa veya elle girilmişse mevcut değeri koru
+  rTouched = false;
+  if (t && F.r != null) { const ar = autoR(); rTouched = F.rManual || ar == null || Math.abs(ar - F.r) > 0.011; }
+  const withSel = (arr, sel) => [...new Set([...arr, ...(Array.isArray(sel) ? sel : [sel])])].filter(Boolean);
+  const chips = (key, arr0, sel, multi, kind = '') => { const arr = withSel(arr0, sel); return `<div class="chips" data-chips="${key}" data-multi="${multi ? 1 : 0}">${arr.map(x => `<button type="button" class="chip ${kind} ${(multi ? sel.includes(x) : sel === x) ? 'on' : ''}" data-v="${esc(x)}">${esc(x)}</button>`).join('')}${['concepts','confirmations','mistakes','pairs'].includes(key) ? `<input class="chip-add" data-addto="${key}" placeholder="+ yeni ekle">` : ''}</div>`; };
+  const seg = (key, opts, v, extra = '') => `<div class="seg ${extra}" data-seg="${key}">${opts.map(([val, l]) => `<button type="button" data-v="${val}" class="${v === val ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  const pairs = [...new Set([...st.pairs, F.pair])].filter(Boolean);
+  const tfOpts = v => withSel(st.timeframes, v).map(x => `<option ${x === v ? 'selected' : ''}>${x}</option>`).join('');
+  const d = $('#drawer');
+  d.innerHTML = `
+  <div class="dhead"><h2>${t ? 'İşlemi düzenle' : 'Yeni işlem'}</h2><button class="btn sm ghost" data-act="closeDrawer">✕</button></div>
+  <form class="dbody" id="tf" autocomplete="off">
+    <div class="fsec"><h4>1 · İşlem</h4>
+      <div class="frow">
+        <label class="fld"><span>Tarih & saat</span><input type="datetime-local" name="date" value="${esc(F.date)}" required></label>
+        <label class="fld"><span>Seans <small class="dim" id="sessHint">${sessTouched ? '' : '(saate göre önerildi)'}</small></span><select name="session">${[...new Set([...st.sessions, F.session])].filter(Boolean).map(x => `<option ${x === F.session ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+        <div class="fld"><span>Yön</span>${seg('dir', [['long', '▲ Long'], ['short', '▼ Short']], F.dir, 'dir')}</div>
+      </div>
+      <div class="fld" style="margin-bottom:10px"><span>Parite</span>${chips('pairs', pairs, F.pair, false)}</div>
+      <div class="frow">
+        <label class="fld"><span>Bias zaman dilimi (HTF)</span><select name="htf">${tfOpts(F.htf)}</select></label>
+        <label class="fld"><span>Giriş zaman dilimi</span><select name="ltf">${tfOpts(F.ltf)}</select></label>
+        <div class="fld"><span>Setup kalitesi</span>${seg('grade', [['A+', 'A+'], ['A', 'A'], ['B', 'B'], ['C', 'C']], F.grade)}</div>
+      </div>
+    </div>
+    <div class="fsec"><h4>2 · Setup ve teyitler <span class="mut" id="confCount" style="text-transform:none;letter-spacing:0">${F.confs.length} teyit</span></h4>
+      <div class="fld" style="margin-bottom:10px"><span>Konsept / setup</span>${chips('concepts', st.concepts, F.concept, false)}</div>
+      <div class="fld" style="margin-bottom:10px"><span>Aldığın teyitler</span>${chips('confirmations', st.confirmations, F.confs, true, 'good')}</div>
+      <label class="fld"><span>Neden girdim? (giriş gerekçesi)</span><textarea name="notes" placeholder="Örn: H4 bias long, Asya dibi süpürüldü, M5’te MSS + FVG’ye geri çekilmede girdim.">${esc(F.notes)}</textarea></label>
+    </div>
+    <div class="fsec"><h4>3 · Fiyatlar ve risk</h4>
+      <div class="frow">
+        <label class="fld"><span>Giriş</span><input type="text" inputmode="decimal" name="entry" value="${esc(F.entry ?? '')}"></label>
+        <label class="fld"><span>Stop loss</span><input type="text" inputmode="decimal" name="sl" value="${esc(F.sl ?? '')}"></label>
+        <label class="fld"><span>Take profit</span><input type="text" inputmode="decimal" name="tp" value="${esc(F.tp ?? '')}"></label>
+        <label class="fld"><span>Risk (${esc(cur())})</span><input type="text" inputmode="decimal" name="risk" value="${esc(F.risk ?? '')}"></label>
+      </div>
+      <div class="calc" id="rrInfo"></div>
+    </div>
+    <div class="fsec" id="resSec"><h4>4 · Sonuç</h4>
+      <div class="fld" style="margin-bottom:10px">${seg('result', RESULTS, F.result)}</div>
+      <div class="frow">
+        <label class="fld"><span>Çıkış fiyatı</span><input type="text" inputmode="decimal" name="exit" value="${esc(F.exit ?? '')}" placeholder="TP/SL ise boş bırakabilirsin"></label>
+        <label class="fld"><span>Sonuç (R) <small class="dim" id="rHint"></small></span><input type="text" inputmode="decimal" name="r" value="${esc(F.r ?? '')}"></label>
+        <label class="fld"><span>Kâr / zarar (${esc(cur())})</span><input type="text" inputmode="decimal" name="pnl" value="${esc(F.pnl ?? '')}"></label>
+      </div>
+    </div>
+    <div class="fsec" id="mistSec"><h4 id="mistTitle">5 · Değerlendirme</h4>
+      <div class="frow">
+        <div class="fld"><span>Plana uydum mu?</span>${seg('plan', [['Evet', 'Evet'], ['Kısmen', 'Kısmen'], ['Hayır', 'Hayır']], F.plan)}</div>
+      </div>
+      <div class="fld" style="margin-bottom:10px"><span>Duygu durumum</span>${chips('emotions', st.emotions, F.emotion, false)}</div>
+      <div class="fld" style="margin-bottom:10px"><span id="mistLabel">Hatalar / eksikler</span>${chips('mistakes', st.mistakes, F.mistakes, true, 'bad')}</div>
+      <label class="fld" style="margin-bottom:10px"><span>Ders / işlem sonrası yorum</span><textarea name="lesson" placeholder="Ne öğrendim? Bir dahaki sefere neyi farklı yapacağım?">${esc(F.lesson)}</textarea></label>
+      <div class="frow">
+        <label class="fld"><span>Etiketler (virgülle)</span><input type="text" name="tags" value="${esc((F.tags || []).join(', '))}" placeholder="örn: haber günü, NFP"></label>
+        <label class="fld"><span>Grafik görüntüleri (en fazla 2)</span><input type="file" id="imgIn" accept="image/*" multiple></label>
+      </div>
+      <div class="thumbs" id="thumbs"></div>
+    </div>
+  </form>
+  <div class="dfoot">${t ? `<button class="btn danger" data-act="delete" data-id="${esc(F.id)}" style="margin-right:auto">Sil</button>` : ''}<button class="btn" data-act="closeDrawer">Vazgeç</button><button class="btn primary" data-act="saveTrade">Kaydet</button></div>`;
+  openDrawer();
+  const form = $('#tf');
+  form.addEventListener('input', onFormInput);
+  form.addEventListener('change', onFormInput);
+  form.addEventListener('click', onFormClick);
+  form.addEventListener('keydown', e => {
+    if (e.target.matches('.chip-add') && e.key === 'Enter') { e.preventDefault(); addFromChip(e.target); }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveTrade(); }
+  });
+  form.addEventListener('submit', e => e.preventDefault());
+  $('#imgIn').addEventListener('change', onImages);
+  drawThumbs(); updateCalc();
+}
+function onFormClick(e){
+  const chip = e.target.closest('.chip'); const segB = e.target.closest('.seg button');
+  if (chip) {
+    const box = chip.parentElement, key = box.dataset.chips, multi = box.dataset.multi === '1', v = chip.dataset.v;
+    const field = { pairs: 'pair', concepts: 'concept', confirmations: 'confs', mistakes: 'mistakes', emotions: 'emotion' }[key];
+    if (multi) {
+      const arr = F[field]; const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v);
+      if (key === 'mistakes' && v === CLEAN && i < 0) F.mistakes = [CLEAN];
+      else if (key === 'mistakes' && v !== CLEAN) F.mistakes = F.mistakes.filter(x => x !== CLEAN);
+      box.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', F[field].includes(c.dataset.v)));
+    } else {
+      F[field] = F[field] === v ? '' : v;
+      box.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.v === F[field]));
+    }
+    updateCalc();
+  } else if (segB) {
+    const box = segB.parentElement, key = box.dataset.seg; F[key] = segB.dataset.v;
+    box.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === segB));
+    updateCalc();
+  }
+}
+function addFromChip(inp){
+  let v = inp.value.trim(); if (!v) return; const key = inp.dataset.addto; if (key === 'pairs') v = v.toUpperCase().replace(/\s+/g, '');
+  if (!S.settings[key].includes(v)) { S.settings[key].push(v); if (!S.demo) Store.saveSettings(); }
+  const box = inp.parentElement; const multi = box.dataset.multi === '1';
+  const field = { pairs: 'pair', concepts: 'concept', confirmations: 'confs', mistakes: 'mistakes' }[key];
+  if (multi) { if (!F[field].includes(v)) F[field].push(v); } else F[field] = v;
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'chip on ' + (key === 'confirmations' ? 'good' : key === 'mistakes' ? 'bad' : ''); b.dataset.v = v; b.textContent = v;
+  if (!multi) box.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  if (![...box.querySelectorAll('.chip')].some(c => c.dataset.v === v)) box.insertBefore(b, inp); else box.querySelectorAll('.chip').forEach(c => { if (c.dataset.v === v) c.classList.add('on'); });
+  inp.value = ''; updateCalc();
+}
+function onFormInput(e){
+  const n = e.target.name; if (!n) return;
+  if (n === 'r') rTouched = e.target.value.trim() !== '';
+  if (n === 'pnl') pnlTouched = e.target.value.trim() !== '';
+  if (n === 'session') sessTouched = true;
+  if (n === 'date' && !sessTouched) { const s = sessionOf(e.target.value); const sel = $('#tf [name=session]'); if (s && [...sel.options].some(o => o.value === s)) sel.value = s; }
+  updateCalc();
+}
+function readForm(){
+  const f = $('#tf'); const g = k => f.elements[k] ? f.elements[k].value : '';
+  F.date = g('date'); F.session = g('session'); F.htf = g('htf'); F.ltf = g('ltf');
+  F.notes = g('notes'); F.lesson = g('lesson');
+  F.entry = num(g('entry')); F.sl = num(g('sl')); F.tp = num(g('tp')); F.exit = num(g('exit')); F.risk = num(g('risk'));
+  F.tags = g('tags').split(',').map(s => s.trim()).filter(Boolean);
+}
+function autoR(){
+  const { entry: e, sl: s, tp, exit: x, dir, result } = F;
+  if (result === 'OPEN') return null; if (result === 'BE') return 0;
+  const risk = e != null && s != null ? Math.abs(e - s) : null;
+  const px = x != null ? x : result === 'TP' ? tp : result === 'SL' ? s : null;
+  if (risk && px != null) return r2(dir === 'long' ? (px - e) / risk : (e - px) / risk);
+  if (result === 'SL') return -1;
+  return null;
+}
+function updateCalc(){
+  if (!F) return; readForm();
+  const f = $('#tf');
+  const risk = F.entry != null && F.sl != null ? Math.abs(F.entry - F.sl) : null;
+  let info = '';
+  if (risk) {
+    const wrongSide = (F.dir === 'long' && F.sl > F.entry) || (F.dir === 'short' && F.sl < F.entry);
+    info += wrongSide ? '<span class="neg">⚠ SL giriş fiyatının yanlış tarafında</span> · ' : '';
+    if (F.tp != null) { const rr = Math.abs(F.tp - F.entry) / risk; info += `Planlanan RR: <span class="${rr >= 2 ? 'pos' : rr >= 1 ? 'zer' : 'neg'}">1 : ${rr.toFixed(2)}</span> · `; }
+    info += `SL mesafesi: ${+risk.toFixed(5)}`;
+  } else info = '<span class="dim">Giriş ve SL girersen RR ve R otomatik hesaplanır.</span>';
+  $('#rrInfo').innerHTML = info;
+  const rIn = f.elements.r, pIn = f.elements.pnl;
+  const ar = autoR();
+  if (!rTouched) { rIn.value = ar == null ? '' : ar; $('#rHint').textContent = ar == null ? '' : '(otomatik)'; } else $('#rHint').textContent = '(elle)';
+  F.r = F.result === 'OPEN' ? null : num(rIn.value);
+  const ap = F.r != null && F.risk != null ? r2(F.r * F.risk) : null;
+  if (!pnlTouched) pIn.value = ap == null ? '' : ap;
+  F.pnl = pnlTouched ? num(pIn.value) : null;
+  $('#confCount').textContent = F.confs.length + ' teyit';
+  const isLoss = F.result === 'SL' || (F.r != null && F.r < -0.05);
+  $('#mistSec').classList.toggle('hl', isLoss);
+  $('#mistTitle').textContent = isLoss ? '5 · SL oldu — eksik / hata neydi?' : '5 · Değerlendirme';
+  $('#mistLabel').innerHTML = isLoss ? `<b style="color:#fca5a5">Bu işlemde ne eksikti?</b> Kurallara tam uyduysan “${esc(CLEAN)}” seç.` : 'Hatalar / eksikler (varsa)';
+}
+async function onImages(e){
+  const files = [...e.target.files].slice(0, 2 - F.imgs.length);
+  if (!files.length) { toast('En fazla 2 görsel eklenebilir.', true); return; }
+  for (const f of files) { try { F.imgs.push(await compressImg(f)); } catch (err) { toast('Görsel okunamadı.', true); } }
+  e.target.value = ''; drawThumbs();
+}
+function compressImg(file){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file); const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = Math.min(1400, img.width), q = 0.75, out = '';
+      for (let k = 0; k < 6; k++) {
+        const h = Math.round(img.height * w / img.width); const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h); out = c.toDataURL('image/jpeg', q);
+        if (out.length <= 105000) break; w = Math.round(w * 0.8); q = Math.max(0.45, q - 0.08);
+      }
+      res(out);
+    };
+    img.onerror = rej; img.src = url;
+  });
+}
+function drawThumbs(){
+  const el = $('#thumbs'); if (!el) return;
+  el.innerHTML = (F.imgs || []).filter(x => IMG_RE.test(x)).map((src, i) => `<div class="th"><img src="${esc(src)}" data-act="zoom" data-i="${i}" alt="Grafik ${i + 1}"><button type="button" data-act="rmImg" data-i="${i}">×</button></div>`).join('');
+}
+async function saveTrade(){
+  readForm(); updateCalc();
+  if (!F.date) return toast('Tarih gerekli.', true);
+  if (!F.pair) return toast('Parite seç.', true);
+  if (F.result !== 'OPEN' && F.r == null) return toast('Sonuç (R) hesaplanamadı: giriş/SL/çıkış gir veya R değerini elle yaz.', true);
+  const t = { ...F, rManual: rTouched, pair: F.pair.toUpperCase(), updatedAt: new Date().toISOString() };
+  if (!t.createdAt) t.createdAt = t.updatedAt;
+  const btn = $('[data-act=saveTrade]'); if (btn) { btn.disabled = true; btn.textContent = 'Kaydediliyor…'; }
+  const ok = await Store.putTrade(t);
+  if (btn) { btn.disabled = false; btn.textContent = 'Kaydet'; }
+  if (!ok) return;
+  closeDrawer(); toast(S.demo ? 'Kaydedildi (demo – kalıcı değil)' : 'İşlem kaydedildi'); render();
+}
+
+/* ============ Detay ============ */
+function openDetail(id){
+  const t = all().find(x => x.id === id); if (!t) return;
+  const o = outcome(t), p = pnlOf(t), MIN = +S.settings.minSample || 5;
+  const others = all().filter(x => x.id !== id);
+  const keyConfs = confImpact(others).filter(x => x.dExp != null && x.dExp > 0.2 && x.yes.n >= MIN && x.no.n >= MIN);
+  const missing = keyConfs.filter(x => !(t.confs || []).includes(x.name));
+  const sim = stats(others.filter(x => x.pair === t.pair && x.concept === t.concept));
+  const rr = t.entry != null && t.sl != null && t.tp != null && t.entry !== t.sl ? Math.abs(t.tp - t.entry) / Math.abs(t.entry - t.sl) : null;
+  const tags = (arr, k = '') => (arr || []).length ? arr.map(x => `<span class="tag ${k}">${esc(x)}</span>`).join('') : '<span class="dim">–</span>';
+  $('#drawer').innerHTML = `
+  <div class="dhead"><h2>${esc(t.pair)} <span class="dir ${t.dir}">${t.dir === 'long' ? '▲ LONG' : '▼ SHORT'}</span> <span class="res ${o}">${{ win: 'KAZANÇ', loss: 'SL', be: 'BE', open: 'AÇIK' }[o]}</span></h2><button class="btn sm ghost" data-act="closeDrawer">✕</button></div>
+  <div class="dbody">
+    <div class="grid g-kpi" style="margin-bottom:12px">
+      ${kpi('Sonuç', t.result === 'OPEN' ? '–' : fmtR(t.r), '', cls(t.r))}
+      ${kpi('K/Z', t.result === 'OPEN' || p == null ? '–' : fmtM(p), '', cls(p))}
+      ${kpi('Planlanan RR', rr ? '1:' + rr.toFixed(2) : '–', '')}
+      ${kpi('Teyit', (t.confs || []).length, t.grade ? 'kalite ' + esc(t.grade) : '')}
+    </div>
+    <div class="fsec"><h4>İşlem</h4><div class="kv">
+      <div>Tarih</div><div>${fmtDate(t.date)} · ${esc(t.session || '')}</div>
+      <div>Konsept</div><div><b>${esc(t.concept || '–')}</b></div>
+      <div>Zaman dilimi</div><div>${esc(t.htf || '–')} bias → ${esc(t.ltf || '–')} giriş</div>
+      <div>Fiyatlar</div><div class="mono">Giriş ${t.entry ?? '–'} · SL ${t.sl ?? '–'} · TP ${t.tp ?? '–'} · Çıkış ${t.exit ?? '–'}</div>
+      <div>Risk</div><div>${t.risk != null ? esc(cur()) + t.risk : '–'}</div>
+      <div>Teyitler</div><div>${tags(t.confs)}</div>
+      <div>Psikoloji</div><div>${esc(t.emotion || '–')} · plana uyum: ${esc(t.plan || '–')}</div>
+      ${(t.tags || []).length ? `<div>Etiketler</div><div>${tags(t.tags)}</div>` : ''}
+    </div></div>
+    ${t.notes ? `<div class="fsec"><h4>Neden girdim?</h4><p style="margin:0;white-space:pre-wrap">${esc(t.notes)}</p></div>` : ''}
+    ${o === 'loss' ? `<div class="fsec hl"><h4>SL analizi</h4>
+      <p style="margin:0 0 8px"><b>İşaretlenen eksik/hatalar:</b> ${tags(t.mistakes)}</p>
+      ${missing.length ? `<p style="margin:0 0 6px"><b>Eksik kilit teyitler</b> <span class="mut">(geçmişte sonucu en çok iyileştiren teyitlerin, bu işlemde yoktu)</span>:</p><ul style="margin:0 0 8px;padding-left:20px">${missing.map(x => `<li>${esc(x.name)} <span class="mut">— varken ort. ${fmtR(x.yes.exp)}, yokken ${fmtR(x.no.exp)}</span></li>`).join('')}</ul>` : keyConfs.length ? '<p class="mut" style="margin:0 0 8px">Kilit teyitlerinin hepsi vardı — bu, sistemin doğal kayıplarından biri olabilir.</p>' : '<p class="mut" style="margin:0 0 8px">Kilit teyit analizi için daha fazla işlem gerekiyor.</p>'}
+      ${(t.mistakes || []).filter(m => ADVICE[m]).map(m => `<p style="margin:4px 0" class="mut">➜ ${esc(ADVICE[m])}</p>`).join('')}
+    </div>` : (t.mistakes || []).length ? `<div class="fsec"><h4>Hatalar / eksikler</h4>${tags(t.mistakes)}</div>` : ''}
+    ${t.lesson ? `<div class="fsec"><h4>Ders / yorum</h4><p style="margin:0;white-space:pre-wrap">${esc(t.lesson)}</p></div>` : ''}
+    <div class="fsec"><h4>Benzer işlemler</h4><p style="margin:0" class="mut">${sim.n ? `${esc(t.pair)} + ${esc(t.concept || '–')} kombinasyonunda diğer ${sim.n} işlem: kazanma ${fmtP(sim.wr)}, ortalama <span class="${cls(sim.exp)}">${fmtR(sim.exp)}</span>, toplam ${fmtR(sim.tot, 1)}.` : 'Bu parite + konsept kombinasyonunda başka işlem yok.'}</p></div>
+    ${(t.imgs || []).length ? `<div class="fsec"><h4>Grafikler</h4><div class="thumbs">${t.imgs.filter(x => IMG_RE.test(x)).map((s, i) => `<div class="th"><img src="${esc(s)}" data-act="zoomT" data-id="${esc(t.id)}" data-i="${i}" alt="Grafik ${i + 1}"></div>`).join('')}</div></div>` : ''}
+  </div>
+  <div class="dfoot"><button class="btn danger" data-act="delete" data-id="${esc(t.id)}" style="margin-right:auto">Sil</button><button class="btn" data-act="dup" data-id="${esc(t.id)}">Kopyala</button><button class="btn primary" data-act="edit" data-id="${esc(t.id)}">Düzenle</button></div>`;
+  openDrawer();
+}
+function openDrawer(){ $('#drawer').classList.add('open'); $('#drawerBg').classList.add('open'); $('#drawer').setAttribute('aria-hidden', 'false'); $('#drawer').scrollTop = 0; }
+function closeDrawer(){ $('#drawer').classList.remove('open'); $('#drawerBg').classList.remove('open'); $('#drawer').setAttribute('aria-hidden', 'true'); F = null; }
+
+/* ============ Modal / toast / banner ============ */
+let modalCancel = null;
+function confirmBox(title, text, okLabel = 'Evet', danger = true){
+  return new Promise(res => {
+    const r = $('#modalRoot');
+    r.innerHTML = `<div class="modal-bg"><div class="modal" role="dialog" aria-modal="true"><h3>${esc(title)}</h3><p class="mut">${esc(text)}</p><div class="acts"><button class="btn" id="mNo">Vazgeç</button><button class="btn ${danger ? 'danger' : 'primary'}" id="mOk">${esc(okLabel)}</button></div></div></div>`;
+    const done = v => { r.innerHTML = ''; modalCancel = null; res(v); };
+    modalCancel = () => done(false);
+    $('#mNo').onclick = () => done(false); $('#mOk').onclick = () => done(true);
+    r.firstChild.addEventListener('click', e => { if (e.target === r.firstChild) done(false); });
+    $('#mOk').focus();
+  });
+}
+function showImg(src){ if (!IMG_RE.test(src || '')) return; const r = $('#modalRoot'); r.innerHTML = `<div class="modal-bg"><img class="imgview" src="${esc(src)}" alt="Grafik"></div>`; r.firstChild.onclick = () => { r.innerHTML = ''; }; }
+function showText(title, text){
+  const r = $('#modalRoot');
+  r.innerHTML = `<div class="modal-bg"><div class="modal" style="max-width:640px"><h3>${esc(title)}</h3><textarea readonly style="height:260px;font:12px var(--mono)">${esc(text)}</textarea><div class="acts"><button class="btn" id="mClose">Kapat</button><button class="btn primary" id="mCopy">Kopyala</button></div></div></div>`;
+  $('#mClose').onclick = () => { r.innerHTML = ''; };
+  $('#mCopy').onclick = async () => { try { await navigator.clipboard.writeText(text); toast('Kopyalandı'); } catch (e) { r.querySelector('textarea').select(); toast('Metni seçtim, Ctrl+C ile kopyalayabilirsin'); } };
+}
+function toast(msg, err){ const d = document.createElement('div'); d.className = 'toast' + (err ? ' err' : ''); d.textContent = msg; $('#toast').appendChild(d); setTimeout(() => d.remove(), err ? 4500 : 2200); }
+function banner(html, kind = 'info', raw = false){ $('#banner').innerHTML = html ? `<div class="note ${kind}">${raw ? html : esc(html)}</div>` : ''; }
+
+/* ============ Dışa / içe aktarma ============ */
+async function saveFile(name, text, mime){
+  const cap = window.Capacitor;
+  if (cap && cap.isNativePlatform && cap.isNativePlatform()) {
+    try {
+      const { Filesystem, Share } = cap.Plugins;
+      const r = await Filesystem.writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
+      await Share.share({ title: name, url: r.uri, dialogTitle: 'Dosyayı kaydet / paylaş' });
+      return;
+    } catch (e) { if (e && /cancel/i.test(String(e.message || e))) return; showText(name, text); return; }
+  }
+  const dl = await getCap('downloads');
+  if (dl) {
+    try { await dl.save({ filename: name, data: new Blob([text], { type: mime }) }); return; }
+    catch (e) { if (e && (e.code === 'declined' || e.code === 'cancelled' || e.code === 'canceled')) return; }
+  }
+  try {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: mime })); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    if (window.claude) setTimeout(() => showText('İndirme engellendiyse buradan kopyala', text), 400);
+  } catch (e) { showText(name, text); }
+}
+const backupObj = () => ({ app: 'trade-jurnal', version: 1, exportedAt: new Date().toISOString(), settings: S.settings, trades: all() });
+function exportCSV(){
+  const cols = [['date','Tarih'],['pair','Parite'],['dir','Yön'],['session','Seans'],['htf','HTF'],['ltf','Giriş TF'],['concept','Konsept'],['confs','Teyitler'],['grade','Kalite'],['entry','Giriş'],['sl','SL'],['tp','TP'],['exit','Çıkış'],['risk','Risk'],['result','Sonuç'],['r','R'],['pnl','K/Z'],['emotion','Duygu'],['plan','Plana uyum'],['mistakes','Hatalar'],['notes','Giriş nedeni'],['lesson','Ders'],['tags','Etiketler']];
+  const q = v => { if (v == null) return ''; if (typeof v === 'number') return String(v).replace('.', ','); let s = String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const rows = sortByDate(all()).map(t => cols.map(([k]) => k === 'pnl' ? q(pnlOf(t)) : Array.isArray(t[k]) ? q(t[k].join(' | ')) : q(t[k])).join(';'));
+  return '﻿' + cols.map(c => c[1]).join(';') + '\n' + rows.join('\n');
+}
+async function importJSON(e){
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  let o; try { o = JSON.parse(await f.text()); } catch (err) { return toast('Dosya okunamadı (geçerli JSON değil).', true); }
+  const trades = Array.isArray(o) ? o : Array.isArray(o.trades) ? o.trades : null;
+  if (!trades) return toast('Bu dosyada işlem bulunamadı.', true);
+  const clean = sanitizeList(trades);
+  if (!clean.length) return toast('Bu dosyada geçerli işlem bulunamadı.', true);
+  if (!await confirmBox('Yedekten yükle', `${clean.length} işlem yüklenecek. Aynı kimlikteki işlemlerin üzerine yazılır, diğerleri korunur.`, 'Yükle', false)) return;
+  if (S.demo) { S.demo = false; S.demoTrades = []; banner(''); }
+  if (o.settings && typeof o.settings === 'object') { const imp = sanitizeSettings(o.settings); for (const k of Object.keys(DEF)) if (Array.isArray(DEF[k]) && Array.isArray(o.settings[k])) S.settings[k] = [...new Set([...S.settings[k], ...imp[k]])]; Store.saveSettings(); }
+  toast('Yükleniyor…');
+  const n = await Store.bulkPut(clean);
+  toast(`${n} işlem yüklendi`); render();
+}
+
+/* ============ Demo verisi ============ */
+function genDemo(){
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const pick = a => a[Math.floor(rnd() * a.length)];
+  const st = DEF;
+  const pairAdj = { XAUUSD: .14, EURUSD: .06, NAS100: .03, GBPUSD: 0, GBPJPY: -.16, BTCUSD: -.08 };
+  const prices = { XAUUSD: [2650, 4], EURUSD: [1.085, .0015], NAS100: [20800, 25], GBPUSD: [1.27, .0018], GBPJPY: [191, .25], BTCUSD: [68000, 450] };
+  const conAdj = { 'Likidite Avı (Sweep)': .1, 'Fair Value Gap (FVG)': .05, 'Order Block': 0, 'Silver Bullet': .07, 'Destek/Direnç Kırılımı': -.12, 'Trend Devamı (Pullback)': -.02 };
+  const confW = { 'HTF bias uyumlu': .09, 'Likidite alındı': .13, 'MSS / CHoCH oluştu': .07, 'FVG içinde giriş': .03, 'OTE (%62–79) bölgesi': .02, 'Killzone içinde': .05, 'Displacement (güçlü mum)': .04, 'SMT diverjansı': .03, 'Hacim teyidi': -.01 };
+  const out = []; const now = Date.now();
+  for (let i = 0; i < 110; i++) {
+    const pair = pick(Object.keys(pairAdj)); const concept = pick(Object.keys(conAdj));
+    const dayOff = Math.floor(rnd() * 150); const d = new Date(now - dayOff * 864e5);
+    if (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 2);
+    const sessPick = rnd(); const hourUTC = sessPick < .15 ? 2 + Math.floor(rnd() * 4) : sessPick < .55 ? 7 + Math.floor(rnd() * 4) : sessPick < .85 ? 13 + Math.floor(rnd() * 3) : 17 + Math.floor(rnd() * 3);
+    d.setUTCHours(hourUTC, Math.floor(rnd() * 60), 0, 0);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
+    const confs = Object.keys(confW).filter(() => rnd() < .45);
+    let mistakes = [];
+    if (rnd() < .38) { mistakes = [pick(['Erken giriş (teyit beklemedim)', "HTF bias'a ters işlem", 'FOMO ile giriş', 'Haber saatinde işlem', 'İntikam işlemi', "TP'yi erken kapattım", 'Likidite alınmadan girdim'])]; if (rnd() < .3) mistakes.push(pick(['SL çok dar', 'Plan dışı işlem', 'Kötü RR (< 1:2)'])); }
+    const session = sessionOf(local);
+    let p = .36 + pairAdj[pair] + conAdj[concept] + confs.reduce((a, c) => a + confW[c], 0) - mistakes.length * .12 + (session === 'Asya' ? -.1 : session === 'Londra/NY Kesişim' ? .06 : 0);
+    if (mistakes.includes("TP'yi erken kapattım")) p += .15;
+    p = Math.max(.08, Math.min(.85, p));
+    const dir = rnd() < .55 ? 'long' : 'short';
+    const roll = rnd(); let result, r;
+    if (roll < .07) { result = 'BE'; r = 0; }
+    else if (roll < .07 + p * .93) { if (mistakes.includes("TP'yi erken kapattım") || rnd() < .2) { result = 'MANUEL'; r = r2(.4 + rnd() * 1.1); } else { result = 'TP'; r = r2(1.8 + rnd() * 1.7); } }
+    else { result = 'SL'; r = mistakes.includes('Aşırı lot / risk') ? -2 : -1; }
+    if (!mistakes.length && result === 'SL' && rnd() < .7) mistakes = [CLEAN];
+    const [base, unit] = prices[pair]; const entry = +(base + (rnd() - .5) * unit * 60).toFixed(pair.includes('USD') && base < 10 ? 5 : 2);
+    const slDist = unit * (2 + rnd() * 3); const dec = base < 10 ? 5 : base < 500 ? 3 : 1;
+    const sl = +(dir === 'long' ? entry - slDist : entry + slDist).toFixed(dec);
+    const tpR = r > 1.5 ? r : 2 + rnd(); const tp = +(dir === 'long' ? entry + slDist * tpR : entry - slDist * tpR).toFixed(dec);
+    const exit = +(dir === 'long' ? entry + slDist * r : entry - slDist * r).toFixed(dec);
+    const emotion = mistakes.includes('FOMO ile giriş') ? 'FOMO' : mistakes.includes('İntikam işlemi') ? 'İntikam hissi' : pick(['Sakin', 'Sakin', 'Kendinden emin', 'Aceleci', 'Yorgun']);
+    const plan = mistakes.length && mistakes[0] !== CLEAN ? (rnd() < .5 ? 'Hayır' : 'Kısmen') : 'Evet';
+    const grade = confs.length >= 4 ? pick(['A+', 'A']) : confs.length >= 2 ? pick(['A', 'B']) : pick(['B', 'C']);
+    out.push({ id: 'demo' + i, date: local, pair, dir, session, htf: pick(['H4', 'H1', 'D1']), ltf: pick(['M5', 'M15', 'M1']), concept, confs, grade, notes: `${concept} setup, ${confs.slice(0, 2).join(' + ') || 'az teyit'}.`, entry, sl, tp, exit, risk: 100, result, r, pnl: null, emotion, plan, mistakes, lesson: result === 'SL' && mistakes[0] && mistakes[0] !== CLEAN ? `${mistakes[0]} — bir dahakine bekle.` : '', imgs: [], tags: [] });
+  }
+  return out;
+}
+
+/* ============ Olaylar ============ */
+document.addEventListener('click', async e => {
+  const nav = e.target.closest('#nav button'); if (nav) { go(nav.dataset.view); return; }
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  const act = a.dataset.act, id = a.dataset.id;
+  switch (act) {
+    case 'new': openForm(null); break;
+    case 'closeDrawer': closeDrawer(); break;
+    case 'saveTrade': saveTrade(); break;
+    case 'view': openDetail(id); break;
+    case 'edit': openForm(all().find(t => t.id === id)); break;
+    case 'dup': { const t = all().find(x => x.id === id); if (t) { const c = clone(t); c.id = uid(); c.date = nowLocal(); c.result = 'OPEN'; c.r = null; c.pnl = null; c.exit = null; c.mistakes = []; c.lesson = ''; c.imgs = []; c.rManual = false; delete c.createdAt; openFormWith(c); } break; }
+    case 'delete': if (await confirmBox('İşlemi sil', 'Bu işlem kalıcı olarak silinecek. Geri alınamaz.', 'Sil')) { if (await Store.delTrade(id)) { closeDrawer(); toast('Silindi'); render(); } } break;
+    case 'rmImg': F.imgs.splice(+a.dataset.i, 1); drawThumbs(); break;
+    case 'zoom': showImg(F.imgs[+a.dataset.i]); break;
+    case 'zoomT': { const t = all().find(x => x.id === id); if (t) showImg(t.imgs[+a.dataset.i]); break; }
+    case 'go': go(a.dataset.v); break;
+    case 'eq': S.eqMode = a.dataset.v; render(); break;
+    case 'cal': { const ym = S.calMonth || nowLocal().slice(0, 7); const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 1 + (+a.dataset.v), 1); S.calMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; render(); break; }
+    case 'clearFilters': S.filters = { range: 'all', pair: '', concept: '', dir: '' }; render(); break;
+    case 'demo': S.demo = true; S.demoTrades = genDemo(); S.demoCoach = null; banner('Demo modundasın: 110 örnek işlemle uygulamayı keşfet. Yaptığın değişiklikler kaydedilmez. <button class="btn sm" data-act="exitDemo">Demodan çık</button>', 'warn', true); go('panel'); break;
+    case 'exitDemo': S.demo = false; S.demoTrades = []; banner(''); render(); break;
+    case 'ai': runAI(); break;
+    case 'addItem': addItem(a.dataset.k); break;
+    case 'rmItem': { const k = a.dataset.k; S.settings[k].splice(+a.dataset.i, 1); Store.saveSettings(); render(); break; }
+    case 'exportJSON': saveFile(`trade-jurnal-yedek-${nowLocal().slice(0, 10)}.json`, JSON.stringify(backupObj(), null, 1), 'application/json'); break;
+    case 'exportCSV': saveFile(`trade-jurnal-${nowLocal().slice(0, 10)}.csv`, exportCSV(), 'text/csv'); break;
+    case 'copyJSON': showText('Yedek (JSON)', JSON.stringify(backupObj())); break;
+    case 'wipe': if (await confirmBox('Tüm işlemleri sil', `${S.trades.length} işlem kalıcı olarak silinecek. Önce yedek almanı öneririz.`, 'Hepsini sil')) { const ids = S.trades.map(t => t.id); for (const i of ids) await Store.delTrade(i); toast('Tüm işlemler silindi'); render(); } break;
+    case 'migrate': { try { const o = JSON.parse(localStorage.getItem(LS_KEY)); const n = await Store.bulkPut(sanitizeList(o.trades)); if (o.settings) { S.settings = sanitizeSettings(o.settings); Store.saveSettings(); } banner(''); toast(`${n} işlem hesabına aktarıldı`); } catch (err) { toast('Aktarım başarısız.', true); } break; }
+  }
+});
+function openFormWith(c){ openForm(c); $('.dhead h2').textContent = 'Yeni işlem (kopya)'; $('.dfoot [data-act=delete]')?.remove(); rTouched = false; pnlTouched = false; sessTouched = false; updateCalc(); }
+document.addEventListener('change', e => {
+  const s = e.target.closest('[data-f]'); if (s) { S.filters[s.dataset.f] = s.value; render(); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if ($('#modalRoot').innerHTML) { if (modalCancel) modalCancel(); else $('#modalRoot').innerHTML = ''; } else if ($('#drawer').classList.contains('open')) closeDrawer(); }
+  if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest('input,textarea,select') && !$('#drawer').classList.contains('open')) { e.preventDefault(); openForm(null); }
+});
+const VIEWS = ['panel', 'islemler', 'analiz', 'koc', 'ayarlar'];
+function go(v){ S.view = VIEWS.includes(v) ? v : 'panel'; try { if (location.hash !== '#' + S.view) history.replaceState(null, '', '#' + S.view); } catch (e) {} render(); window.scrollTo(0, 0); }
+window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (VIEWS.includes(v) && v !== S.view) { S.view = v; render(); } });
+S.view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'panel';
+Store.init();
+try { if (new URLSearchParams(location.search).has('yeni')) setTimeout(() => openForm(null), 300); } catch (e) {}
+
+/* ============ Kurulabilir uygulama (PWA) ============ */
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('#installBtn').classList.remove('hide'); });
+window.addEventListener('appinstalled', () => { installEvt = null; $('#installBtn').classList.add('hide'); toast('Uygulama yüklendi'); });
+document.addEventListener('click', async e => {
+  if (!e.target.closest('[data-act=install]') || !installEvt) return;
+  installEvt.prompt(); try { await installEvt.userChoice; } catch (err) {} installEvt = null; $('#installBtn').classList.add('hide');
+});
+(function(){
+  const web = /^https?:$/.test(location.protocol) && !window.Capacitor && !/claude\.ai|claudeusercontent|anthropic/.test(location.hostname);
+  if (web && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+})();
+</script>
+</body>
+</html>

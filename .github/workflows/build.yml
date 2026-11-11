@@ -97,8 +97,15 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
+          # Yapıştırırken karışan boşluk/satır sonu ve "Secret:" önekini temizle
+          KS_PASS=$(printf '%s' "$KS_PASS" | tr -d '\r\n' | sed -E 's/^[[:space:]]*(Secret:)?[[:space:]]*//; s/[[:space:]]+$//')
+          KS_B64=$(printf '%s' "$KS_B64" | sed -E 's/^[[:space:]]*(Secret[^:]*:)?//' | tr -d ' \t\r\n')
           if [ -n "$KS_B64" ]; then
             echo "$KS_B64" | base64 -d > "$PWD/release.jks"
+            if ! keytool -list -keystore "$PWD/release.jks" -storepass "$KS_PASS" -alias tradejurnal >/dev/null 2>&1; then
+              echo "::error::Android imza anahtarı açılamadı: ANDROID_KEYSTORE_PASSWORD yanlış ya da ANDROID_KEYSTORE_B64 eksik kopyalanmış."
+              exit 1
+            fi
             ./gradlew assembleRelease --no-daemon \
               -Pandroid.injected.signing.store.file="$PWD/release.jks" \
               -Pandroid.injected.signing.store.password="$KS_PASS" \

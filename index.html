@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
-:root{
+:root{color-scheme:dark;
   --bg:#0a0e13;--panel:#111821;--panel2:#16202b;--line:#223042;--line2:#2c3c52;
   --text:#e6edf3;--mut:#8b9bb0;--dim:#5d6d82;
   --acc:#38bdf8;--acc2:#0ea5e9;--win:#22c55e;--loss:#ef4444;--be:#eab308;--warn:#f59e0b;
@@ -25,6 +25,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 Inter,system-ui,sans-serif}
 button,input,select,textarea{font:inherit;color:inherit}
+option{background:#111821;color:#e6edf3}
 a{color:var(--acc)}
 .mono{font-family:var(--mono)}
 .mut{color:var(--mut)}.dim{color:var(--dim)}
@@ -277,6 +278,39 @@ const fmtM = x => x == null || !isFinite(x) ? '–' : (x < 0 ? '-' : x > 0 ? '+'
 const cls = x => x == null ? '' : x > 0.0001 ? 'pos' : x < -0.0001 ? 'neg' : 'zer';
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 function nowLocal(){ const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); }
+function localDate(d){ const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10); }
+const RES_OK = ['TP', 'SL', 'BE', 'MANUEL', 'OPEN'];
+const IMG_RE = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/;
+function safeId(v){ return String(v || uid()).replace(/[^A-Za-z0-9_\-.~:@+]/g, '_').slice(0, 100) || uid(); }
+// Dışarıdan gelen (yedek dosyası, eski kayıt, bulut) işlemleri güvenli ve tutarlı hale getirir
+function sanitizeTrade(t){
+  if (!t || typeof t !== 'object') return null;
+  const str = (v, max = 5000) => v == null ? '' : String(v).slice(0, max);
+  const n = v => { const x = typeof v === 'number' ? v : num(v); return x == null || !isFinite(x) ? null : x; };
+  const arr = v => Array.isArray(v) ? [...new Set(v.filter(x => typeof x === 'string' || typeof x === 'number').map(x => String(x).slice(0, 200)))] : [];
+  const date = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(String(t.date || '').slice(0, 16)) ? String(t.date).slice(0, 16) : '';
+  const result = RES_OK.includes(t.result) ? t.result : (n(t.r) == null ? 'OPEN' : 'MANUEL');
+  return {
+    id: safeId(t.id), date, pair: str(t.pair, 40).toUpperCase(), dir: t.dir === 'short' ? 'short' : 'long',
+    session: str(t.session, 80), htf: str(t.htf, 10), ltf: str(t.ltf, 10), concept: str(t.concept, 200),
+    confs: arr(t.confs), grade: ['A+', 'A', 'B', 'C'].includes(t.grade) ? t.grade : '', notes: str(t.notes), lesson: str(t.lesson),
+    entry: n(t.entry), sl: n(t.sl), tp: n(t.tp), exit: n(t.exit), risk: n(t.risk),
+    result, r: result === 'OPEN' ? null : n(t.r), pnl: n(t.pnl), rManual: !!t.rManual,
+    emotion: str(t.emotion, 80), plan: ['Evet', 'Kısmen', 'Hayır'].includes(t.plan) ? t.plan : '', mistakes: arr(t.mistakes),
+    imgs: (Array.isArray(t.imgs) ? t.imgs : []).filter(x => typeof x === 'string' && IMG_RE.test(x)).slice(0, 2),
+    tags: arr(t.tags), createdAt: str(t.createdAt, 40), updatedAt: str(t.updatedAt, 40)
+  };
+}
+const sanitizeList = list => (Array.isArray(list) ? list : []).map(sanitizeTrade).filter(t => t && t.pair);
+function sanitizeSettings(o){
+  const out = clone(DEF); if (!o || typeof o !== 'object') return out;
+  for (const k of Object.keys(DEF)) {
+    if (Array.isArray(DEF[k])) { if (Array.isArray(o[k])) out[k] = [...new Set(o[k].filter(x => typeof x === 'string' && x.trim()).map(x => x.slice(0, 200)))]; }
+    else if (k === 'currency') { if (o[k]) out[k] = String(o[k]).slice(0, 4); }
+    else { const x = num(o[k]); if (x != null) out[k] = x; }
+  }
+  return out;
+}
 function fmtDate(s){ if (!s) return ''; const [d, t] = s.split('T'); const [y, m, dd] = d.split('-'); return `${dd}.${m}.${y.slice(2)}${t ? ' ' + t.slice(0, 5) : ''}`; }
 
 /* ============ Saklama ============ */
@@ -293,7 +327,7 @@ const Store = {
   loadLocal(){
     try {
       const raw = localStorage.getItem(LS_KEY);
-      if (raw) { const o = JSON.parse(raw); S.trades = Array.isArray(o.trades) ? o.trades : []; if (o.settings) S.settings = { ...clone(DEF), ...o.settings }; S.coach = o.coach || null; }
+      if (raw) { const o = JSON.parse(raw); S.trades = sanitizeList(o.trades); if (o.settings) S.settings = sanitizeSettings(o.settings); S.coach = o.coach && typeof o.coach.text === 'string' ? o.coach : null; }
     } catch (e) {}
     S.localTradesAtStart = S.trades.length;
   },
@@ -319,12 +353,12 @@ const Store = {
     S.backend = 'cloud'; S.trades = []; S.cloudLoaded = false; updateBadge(); render();
     const timer = setTimeout(() => { if (!S.cloudLoaded) banner('Bulut verilerine şu an ulaşılamıyor; bağlantı gelince otomatik yüklenecek.', 'warn'); }, 10000);
     this.tradesCol.onSnapshot(snap => {
-      S.trades = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      S.trades = sanitizeList(snap.docs.map(d => ({ ...d.data(), id: d.id })));
       if (!snap.metadata.fromCache) { clearTimeout(timer); if (!S.cloudLoaded) { S.cloudLoaded = true; banner(''); maybeOfferMigration(); } }
       render();
     }, err => { clearTimeout(timer); banner('Bulut bağlantısı kesildi. Sayfayı yeniden açtığınızda tekrar bağlanır.', 'warn'); });
-    this.settingsRef.onSnapshot(snap => { if (snap.exists) { S.settings = { ...clone(DEF), ...snap.data() }; render(); } }, () => {});
-    this.coachRef.onSnapshot(snap => { if (snap.exists) { S.coach = snap.data(); if (S.view === 'koc') render(); } }, () => {});
+    this.settingsRef.onSnapshot(snap => { if (snap.exists) { S.settings = sanitizeSettings(snap.data()); if (S.view !== 'ayarlar' || !document.activeElement || !document.activeElement.closest('#main input')) render(); } }, () => {});
+    this.coachRef.onSnapshot(snap => { if (snap.exists && typeof (snap.data() || {}).text === 'string') { S.coach = snap.data(); if (S.view === 'koc') render(); } }, () => {});
   },
   async putTrade(t){
     if (S.demo) { const i = S.demoTrades.findIndex(x => x.id === t.id); if (i >= 0) S.demoTrades[i] = t; else S.demoTrades.push(t); return true; }
@@ -392,7 +426,7 @@ function sortByDate(list){ return [...list].sort((a, b) => (a.date || '').locale
 function applyFilters(list){
   const f = S.filters; let from = null;
   const d = new Date();
-  if (f.range === '7' || f.range === '30' || f.range === '90') { d.setDate(d.getDate() - (+f.range)); from = d.toISOString().slice(0, 10); }
+  if (f.range === '7' || f.range === '30' || f.range === '90') { d.setDate(d.getDate() - (+f.range)); from = localDate(d); }
   else if (f.range === 'month') from = nowLocal().slice(0, 7) + '-01';
   else if (f.range === 'ytd') from = nowLocal().slice(0, 4) + '-01-01';
   return list.filter(t => (!from || (t.date || '') >= from) && (!f.pair || t.pair === f.pair) && (!f.concept || t.concept === f.concept) && (!f.dir || t.dir === f.dir));
@@ -433,8 +467,8 @@ function confImpact(list){
   return names.map(name => {
     const yes = c.filter(t => (t.confs || []).includes(name)), no = c.filter(t => !(t.confs || []).includes(name));
     const a = stats(yes), b = stats(no);
-    return { name, yes: a, no: b, use: c.length ? yes.length / c.length : 0, dExp: (a.exp ?? 0) - (b.exp ?? 0), dWr: (a.wr ?? 0) - (b.wr ?? 0) };
-  }).filter(x => x.yes.n > 0).sort((x, y) => y.dExp - x.dExp);
+    return { name, yes: a, no: b, use: c.length ? yes.length / c.length : 0, dExp: a.exp != null && b.exp != null ? a.exp - b.exp : null, dWr: a.wr != null && b.wr != null ? a.wr - b.wr : null };
+  }).filter(x => x.yes.n > 0).sort((x, y) => (y.dExp ?? -1e9) - (x.dExp ?? -1e9));
 }
 function missingInLosses(list){
   const c = list.filter(isClosed); const L = c.filter(t => outcome(t) === 'loss'), W = c.filter(t => outcome(t) === 'win');
@@ -536,11 +570,11 @@ function buildInsights(list){
   const ms = mistakeStats(list).filter(m => m.cost < 0);
   if (ms.length) {
     const m = ms[0];
-    add('gelistir', `En pahalı hatan: ${m.name}`, `${m.n} kez yapılmış, toplam maliyeti ${fmtR(m.cost)} (kayıpların ${fmtP(m.lossShare)}’inde var). Bu tek hatayı sıfırlasaydın net sonucun ${fmtR(A.tot - m.cost)} olurdu.`);
+    add('gelistir', `En pahalı hatan: ${m.name}`, `${m.n} kez yapılmış, toplam sonucu ${fmtR(m.cost)} (SL’lerinin ${fmtP(m.lossShare)}’inde var). Bu hatayla açtığın işlemleri hiç açmasaydın net sonucun ${fmtR(A.tot - m.cost)} olurdu.`);
     ms.slice(0, 3).forEach(x => add('kural', `Hata önleme: ${x.name}`, ADVICE[x.name] || `“${x.name}” hatasını tetikleyen durumu yaz ve işlem öncesi kontrol listene ekle.`));
-    const totalCost = ms.reduce((a, x) => a + x.lossCost, 0);
     const lossR = losses.reduce((a, t) => a + t.r, 0);
-    if (lossR < 0 && totalCost < 0) add('genel', 'Kayıplarının ne kadarı hatadan?', `Hata işaretlenen işlemler kayıplarının yaklaşık ${fmtP(Math.min(1, totalCost / lossR))}’ini oluşturuyor. Kalanı sistemin doğal kayıpları; onlar normal.`);
+    const errR = losses.filter(t => (t.mistakes || []).some(x => x !== CLEAN)).reduce((a, t) => a + t.r, 0);
+    if (lossR < 0 && errR < 0) add('genel', 'Kayıplarının ne kadarı hatadan?', `Kayıplarının (toplam ${fmtR(lossR, 1)}) yaklaşık ${fmtP(errR / lossR)}’i hata işaretlediğin işlemlerden geliyor. Kalanı sistemin doğal kayıpları; onlar normal.`);
   }
   const untagged = losses.filter(t => !(t.mistakes || []).length).length;
   if (untagged) add('genel', `${untagged} SL işleminde “eksik neydi?” boş`, `Bu alanı doldurmak analizi güçlendirir. Kurallara uyduysan “${CLEAN}” seç; o zaman kaybın sistemden mi hatadan mı geldiği net görünür.`);
@@ -563,7 +597,7 @@ function buildInsights(list){
   }
   // Plan / duygu / kalite
   const plan = groupStats(list, t => t.plan);
-  const pY = plan.find(x => x.key === 'Evet'), pN = plan.filter(x => x.key !== 'Evet');
+  const pY = plan.find(x => x.key === 'Evet');
   const pNs = stats(c.filter(t => t.plan && t.plan !== 'Evet'));
   if (pY && pY.n >= MIN && pNs.n >= 3 && pY.exp > pNs.exp) add('gelistir', pNs.exp < 0 ? 'Plan dışına çıkınca kaybediyorsun' : 'Plan dışı işlemler daha zayıf', `Plana uyduğun ${pY.n} işlemde ortalama ${fmtR(pY.exp)}, uymadığın/kısmen uyduğun ${pNs.n} işlemde ${fmtR(pNs.exp)}. Plan dışı her işlem sana yaklaşık ${fmtR(pY.exp - pNs.exp)} kaybettiriyor.`);
   const emo = groupStats(list, t => t.emotion).filter(x => x.n >= 3).sort((a, b) => a.exp - b.exp);
@@ -672,7 +706,7 @@ function tradeTable(list, compact){
   ${list.map(t => { const o = outcome(t); const p = pnlOf(t); return `<tr class="click" data-act="view" data-id="${esc(t.id)}">
     <td class="mono dim" style="font-size:12px;white-space:nowrap">${fmtDate(t.date)}</td>
     <td><b>${esc(t.pair)}</b></td>
-    <td><span class="dir ${t.dir}">${t.dir === 'long' ? '▲ LONG' : '▼ SHORT'}</span></td>
+    <td><span class="dir ${t.dir === 'short' ? 'short' : 'long'}">${t.dir === 'long' ? '▲ LONG' : '▼ SHORT'}</span></td>
     <td>${esc(t.concept || '–')}</td>
     ${compact ? '' : `<td class="n">${(t.confs || []).length}</td><td class="mut">${esc(t.session || '')}</td><td>${(t.mistakes || []).filter(x => x !== CLEAN).slice(0, 2).map(x => `<span class="tag">${esc(x)}</span>`).join('')}${(t.mistakes || []).filter(x => x !== CLEAN).length > 2 ? '<span class="tag">…</span>' : ''}</td>`}
     <td><span class="res ${o}">${{ win: 'KAZANÇ', loss: 'SL', be: 'BE', open: 'AÇIK' }[o]}</span></td>
@@ -776,10 +810,10 @@ function renderAnalysis(m){
   if (!all().length) { m.innerHTML = emptyState(); return; }
   const MIN = +S.settings.minSample || 5;
   const imp = confImpact(list); const miss = missingInLosses(list); const ms = mistakeStats(list);
-  const mxI = Math.max(0.01, ...imp.map(x => Math.abs(x.dExp)));
+  const mxI = Math.max(0.01, ...imp.map(x => Math.abs(x.dExp ?? 0)));
   const confCard = `<div class="card"><h3>Teyitlerin etkisi <small>teyit varken vs yokken</small></h3><div class="scroll"><table class="tbl">
     <thead><tr><th>Teyit</th><th class="n">Kullanım</th><th class="n">Varken kazanma</th><th class="n">Yokken</th><th class="n">Varken ort.</th><th class="n">Yokken</th><th></th><th class="n">Etki</th></tr></thead>
-    <tbody>${imp.map(x => `<tr class="${x.yes.n < MIN || x.no.n < MIN ? 'low' : ''}"><td>${esc(x.name)}</td><td class="n">${x.yes.n} <span class="dim">(${fmtP(x.use)})</span></td><td class="n">${fmtP(x.yes.wr)}</td><td class="n dim">${fmtP(x.no.wr)}</td><td class="n ${cls(x.yes.exp)}">${fmtR(x.yes.exp)}</td><td class="n dim">${fmtR(x.no.exp)}</td>${barTd(x.dExp, mxI)}<td class="n ${cls(x.dExp)}">${fmtR(x.dExp)}</td></tr>`).join('') || '<tr><td colspan="8" class="mut">Teyit verisi yok.</td></tr>'}</tbody></table></div>
+    <tbody>${imp.map(x => `<tr class="${x.yes.n < MIN || x.no.n < MIN ? 'low' : ''}"><td>${esc(x.name)}</td><td class="n">${x.yes.n} <span class="dim">(${fmtP(x.use)})</span></td><td class="n">${fmtP(x.yes.wr)}</td><td class="n dim">${fmtP(x.no.wr)}</td><td class="n ${cls(x.yes.exp)}">${fmtR(x.yes.exp)}</td><td class="n dim">${fmtR(x.no.exp)}</td>${x.dExp == null ? '<td></td>' : barTd(x.dExp, mxI)}<td class="n ${cls(x.dExp)}">${fmtR(x.dExp)}</td></tr>`).join('') || '<tr><td colspan="8" class="mut">Teyit verisi yok.</td></tr>'}</tbody></table></div>
     <p class="dim" style="font-size:12px;margin:8px 0 0">Etki = teyit varken ortalama R − yokken ortalama R. Pozitif ve büyük olanlar senin gerçek filtrelerin.</p></div>`;
   const missCard = `<div class="card"><h3>SL’lerde eksik olan teyitler <small>kayıplarda yok / kazançlarda yok</small></h3>${miss.length ? `<table class="tbl"><thead><tr><th>Teyit</th><th class="n">SL’lerde eksik</th><th class="n">Kazançlarda eksik</th><th class="n">Fark</th></tr></thead><tbody>${miss.slice(0, 10).map(x => `<tr><td>${esc(x.name)}</td><td class="n neg">${fmtP(x.mL)}</td><td class="n">${fmtP(x.mW)}</td><td class="n ${x.gap > 0.15 ? 'neg' : 'dim'}">${x.gap > 0 ? '+' : ''}${Math.round(x.gap * 100)} puan</td></tr>`).join('')}</tbody></table><p class="dim" style="font-size:12px;margin:8px 0 0">Fark büyükse: SL olan işlemlerde bu teyit genellikle yoktu, kazananlarda vardı.</p>` : '<p class="mut">Henüz SL işlemi yok.</p>'}</div>`;
   const mxM = Math.max(0.01, ...ms.map(x => Math.abs(x.cost)));
@@ -964,12 +998,16 @@ function addItem(k){
 let F = null; let rTouched = false, pnlTouched = false, sessTouched = false;
 function openForm(t){
   const st = S.settings;
-  F = t ? clone(t) : { id: uid(), date: nowLocal(), pair: S.filters.pair || '', dir: 'long', session: sessionOf(nowLocal()), htf: 'H4', ltf: 'M5', concept: S.filters.concept || '', confs: [], grade: 'A', notes: '', entry: null, sl: null, tp: null, exit: null, risk: st.defaultRisk, result: 'OPEN', r: null, pnl: null, emotion: 'Sakin', plan: 'Evet', mistakes: [], lesson: '', imgs: [], tags: [] };
-  rTouched = !!t && t.rManual; pnlTouched = !!t && t.pnl != null; sessTouched = !!t;
-  const chips = (key, arr, sel, multi, kind = '') => `<div class="chips" data-chips="${key}" data-multi="${multi ? 1 : 0}">${arr.map(x => `<button type="button" class="chip ${kind} ${(multi ? sel.includes(x) : sel === x) ? 'on' : ''}" data-v="${esc(x)}">${esc(x)}</button>`).join('')}${['concepts','confirmations','mistakes','pairs'].includes(key) ? `<input class="chip-add" data-addto="${key}" placeholder="+ yeni ekle">` : ''}</div>`;
+  F = t ? sanitizeTrade(clone(t)) : { id: uid(), date: nowLocal(), pair: S.filters.pair || '', dir: 'long', session: sessionOf(nowLocal()), htf: 'H4', ltf: 'M5', concept: S.filters.concept || '', confs: [], grade: 'A', notes: '', entry: null, sl: null, tp: null, exit: null, risk: st.defaultRisk, result: 'OPEN', r: null, pnl: null, emotion: 'Sakin', plan: 'Evet', mistakes: [], lesson: '', imgs: [], tags: [] };
+  pnlTouched = !!t && F.pnl != null; sessTouched = !!t;
+  // Düzenlemede: R fiyatlardan hesaplanamıyorsa veya elle girilmişse mevcut değeri koru
+  rTouched = false;
+  if (t && F.r != null) { const ar = autoR(); rTouched = F.rManual || ar == null || Math.abs(ar - F.r) > 0.011; }
+  const withSel = (arr, sel) => [...new Set([...arr, ...(Array.isArray(sel) ? sel : [sel])])].filter(Boolean);
+  const chips = (key, arr0, sel, multi, kind = '') => { const arr = withSel(arr0, sel); return `<div class="chips" data-chips="${key}" data-multi="${multi ? 1 : 0}">${arr.map(x => `<button type="button" class="chip ${kind} ${(multi ? sel.includes(x) : sel === x) ? 'on' : ''}" data-v="${esc(x)}">${esc(x)}</button>`).join('')}${['concepts','confirmations','mistakes','pairs'].includes(key) ? `<input class="chip-add" data-addto="${key}" placeholder="+ yeni ekle">` : ''}</div>`; };
   const seg = (key, opts, v, extra = '') => `<div class="seg ${extra}" data-seg="${key}">${opts.map(([val, l]) => `<button type="button" data-v="${val}" class="${v === val ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   const pairs = [...new Set([...st.pairs, F.pair])].filter(Boolean);
-  const tfOpts = v => st.timeframes.map(x => `<option ${x === v ? 'selected' : ''}>${x}</option>`).join('');
+  const tfOpts = v => withSel(st.timeframes, v).map(x => `<option ${x === v ? 'selected' : ''}>${x}</option>`).join('');
   const d = $('#drawer');
   d.innerHTML = `
   <div class="dhead"><h2>${t ? 'İşlemi düzenle' : 'Yeni işlem'}</h2><button class="btn sm ghost" data-act="closeDrawer">✕</button></div>
@@ -1059,7 +1097,7 @@ function onFormClick(e){
   }
 }
 function addFromChip(inp){
-  const v = inp.value.trim(); if (!v) return; const key = inp.dataset.addto;
+  let v = inp.value.trim(); if (!v) return; const key = inp.dataset.addto; if (key === 'pairs') v = v.toUpperCase().replace(/\s+/g, '');
   if (!S.settings[key].includes(v)) { S.settings[key].push(v); if (!S.demo) Store.saveSettings(); }
   const box = inp.parentElement; const multi = box.dataset.multi === '1';
   const field = { pairs: 'pair', concepts: 'concept', confirmations: 'confs', mistakes: 'mistakes' }[key];
@@ -1142,7 +1180,7 @@ function compressImg(file){
 }
 function drawThumbs(){
   const el = $('#thumbs'); if (!el) return;
-  el.innerHTML = (F.imgs || []).map((src, i) => `<div class="th"><img src="${src}" data-act="zoom" data-i="${i}" alt="Grafik ${i + 1}"><button type="button" data-act="rmImg" data-i="${i}">×</button></div>`).join('');
+  el.innerHTML = (F.imgs || []).filter(x => IMG_RE.test(x)).map((src, i) => `<div class="th"><img src="${esc(src)}" data-act="zoom" data-i="${i}" alt="Grafik ${i + 1}"><button type="button" data-act="rmImg" data-i="${i}">×</button></div>`).join('');
 }
 async function saveTrade(){
   readForm(); updateCalc();
@@ -1163,7 +1201,7 @@ function openDetail(id){
   const t = all().find(x => x.id === id); if (!t) return;
   const o = outcome(t), p = pnlOf(t), MIN = +S.settings.minSample || 5;
   const others = all().filter(x => x.id !== id);
-  const keyConfs = confImpact(others).filter(x => x.dExp > 0.2 && x.yes.n >= MIN && x.no.n >= MIN);
+  const keyConfs = confImpact(others).filter(x => x.dExp != null && x.dExp > 0.2 && x.yes.n >= MIN && x.no.n >= MIN);
   const missing = keyConfs.filter(x => !(t.confs || []).includes(x.name));
   const sim = stats(others.filter(x => x.pair === t.pair && x.concept === t.concept));
   const rr = t.entry != null && t.sl != null && t.tp != null && t.entry !== t.sl ? Math.abs(t.tp - t.entry) / Math.abs(t.entry - t.sl) : null;
@@ -1195,7 +1233,7 @@ function openDetail(id){
     </div>` : (t.mistakes || []).length ? `<div class="fsec"><h4>Hatalar / eksikler</h4>${tags(t.mistakes)}</div>` : ''}
     ${t.lesson ? `<div class="fsec"><h4>Ders / yorum</h4><p style="margin:0;white-space:pre-wrap">${esc(t.lesson)}</p></div>` : ''}
     <div class="fsec"><h4>Benzer işlemler</h4><p style="margin:0" class="mut">${sim.n ? `${esc(t.pair)} + ${esc(t.concept || '–')} kombinasyonunda diğer ${sim.n} işlem: kazanma ${fmtP(sim.wr)}, ortalama <span class="${cls(sim.exp)}">${fmtR(sim.exp)}</span>, toplam ${fmtR(sim.tot, 1)}.` : 'Bu parite + konsept kombinasyonunda başka işlem yok.'}</p></div>
-    ${(t.imgs || []).length ? `<div class="fsec"><h4>Grafikler</h4><div class="thumbs">${t.imgs.map((s, i) => `<div class="th"><img src="${s}" data-act="zoomT" data-id="${esc(t.id)}" data-i="${i}" alt="Grafik ${i + 1}"></div>`).join('')}</div></div>` : ''}
+    ${(t.imgs || []).length ? `<div class="fsec"><h4>Grafikler</h4><div class="thumbs">${t.imgs.filter(x => IMG_RE.test(x)).map((s, i) => `<div class="th"><img src="${esc(s)}" data-act="zoomT" data-id="${esc(t.id)}" data-i="${i}" alt="Grafik ${i + 1}"></div>`).join('')}</div></div>` : ''}
   </div>
   <div class="dfoot"><button class="btn danger" data-act="delete" data-id="${esc(t.id)}" style="margin-right:auto">Sil</button><button class="btn" data-act="dup" data-id="${esc(t.id)}">Kopyala</button><button class="btn primary" data-act="edit" data-id="${esc(t.id)}">Düzenle</button></div>`;
   openDrawer();
@@ -1204,17 +1242,19 @@ function openDrawer(){ $('#drawer').classList.add('open'); $('#drawerBg').classL
 function closeDrawer(){ $('#drawer').classList.remove('open'); $('#drawerBg').classList.remove('open'); $('#drawer').setAttribute('aria-hidden', 'true'); F = null; }
 
 /* ============ Modal / toast / banner ============ */
+let modalCancel = null;
 function confirmBox(title, text, okLabel = 'Evet', danger = true){
   return new Promise(res => {
     const r = $('#modalRoot');
     r.innerHTML = `<div class="modal-bg"><div class="modal" role="dialog" aria-modal="true"><h3>${esc(title)}</h3><p class="mut">${esc(text)}</p><div class="acts"><button class="btn" id="mNo">Vazgeç</button><button class="btn ${danger ? 'danger' : 'primary'}" id="mOk">${esc(okLabel)}</button></div></div></div>`;
-    const done = v => { r.innerHTML = ''; res(v); };
+    const done = v => { r.innerHTML = ''; modalCancel = null; res(v); };
+    modalCancel = () => done(false);
     $('#mNo').onclick = () => done(false); $('#mOk').onclick = () => done(true);
     r.firstChild.addEventListener('click', e => { if (e.target === r.firstChild) done(false); });
     $('#mOk').focus();
   });
 }
-function showImg(src){ const r = $('#modalRoot'); r.innerHTML = `<div class="modal-bg"><img class="imgview" src="${src}" alt="Grafik"></div>`; r.firstChild.onclick = () => { r.innerHTML = ''; }; }
+function showImg(src){ if (!IMG_RE.test(src || '')) return; const r = $('#modalRoot'); r.innerHTML = `<div class="modal-bg"><img class="imgview" src="${esc(src)}" alt="Grafik"></div>`; r.firstChild.onclick = () => { r.innerHTML = ''; }; }
 function showText(title, text){
   const r = $('#modalRoot');
   r.innerHTML = `<div class="modal-bg"><div class="modal" style="max-width:640px"><h3>${esc(title)}</h3><textarea readonly style="height:260px;font:12px var(--mono)">${esc(text)}</textarea><div class="acts"><button class="btn" id="mClose">Kapat</button><button class="btn primary" id="mCopy">Kopyala</button></div></div></div>`;
@@ -1249,7 +1289,7 @@ async function saveFile(name, text, mime){
 const backupObj = () => ({ app: 'trade-jurnal', version: 1, exportedAt: new Date().toISOString(), settings: S.settings, trades: all() });
 function exportCSV(){
   const cols = [['date','Tarih'],['pair','Parite'],['dir','Yön'],['session','Seans'],['htf','HTF'],['ltf','Giriş TF'],['concept','Konsept'],['confs','Teyitler'],['grade','Kalite'],['entry','Giriş'],['sl','SL'],['tp','TP'],['exit','Çıkış'],['risk','Risk'],['result','Sonuç'],['r','R'],['pnl','K/Z'],['emotion','Duygu'],['plan','Plana uyum'],['mistakes','Hatalar'],['notes','Giriş nedeni'],['lesson','Ders'],['tags','Etiketler']];
-  const q = v => { if (v == null) return ''; if (typeof v === 'number') return String(v).replace('.', ','); const s = String(v); return /[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const q = v => { if (v == null) return ''; if (typeof v === 'number') return String(v).replace('.', ','); let s = String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const rows = sortByDate(all()).map(t => cols.map(([k]) => k === 'pnl' ? q(pnlOf(t)) : Array.isArray(t[k]) ? q(t[k].join(' | ')) : q(t[k])).join(';'));
   return '﻿' + cols.map(c => c[1]).join(';') + '\n' + rows.join('\n');
 }
@@ -1258,9 +1298,11 @@ async function importJSON(e){
   let o; try { o = JSON.parse(await f.text()); } catch (err) { return toast('Dosya okunamadı (geçerli JSON değil).', true); }
   const trades = Array.isArray(o) ? o : Array.isArray(o.trades) ? o.trades : null;
   if (!trades) return toast('Bu dosyada işlem bulunamadı.', true);
-  const clean = trades.filter(t => t && typeof t === 'object' && t.pair).map(t => ({ ...t, id: String(t.id || uid()).replace(/[^A-Za-z0-9_\-.~:@+]/g, '_').slice(0, 100), confs: Array.isArray(t.confs) ? t.confs : [], mistakes: Array.isArray(t.mistakes) ? t.mistakes : [], imgs: Array.isArray(t.imgs) ? t.imgs : [] }));
+  const clean = sanitizeList(trades);
+  if (!clean.length) return toast('Bu dosyada geçerli işlem bulunamadı.', true);
   if (!await confirmBox('Yedekten yükle', `${clean.length} işlem yüklenecek. Aynı kimlikteki işlemlerin üzerine yazılır, diğerleri korunur.`, 'Yükle', false)) return;
-  if (o.settings && typeof o.settings === 'object') { for (const k of Object.keys(DEF)) if (Array.isArray(DEF[k]) && Array.isArray(o.settings[k])) S.settings[k] = [...new Set([...S.settings[k], ...o.settings[k].map(String)])]; Store.saveSettings(); }
+  if (S.demo) { S.demo = false; S.demoTrades = []; banner(''); }
+  if (o.settings && typeof o.settings === 'object') { const imp = sanitizeSettings(o.settings); for (const k of Object.keys(DEF)) if (Array.isArray(DEF[k]) && Array.isArray(o.settings[k])) S.settings[k] = [...new Set([...S.settings[k], ...imp[k]])]; Store.saveSettings(); }
   toast('Yükleniyor…');
   const n = await Store.bulkPut(clean);
   toast(`${n} işlem yüklendi`); render();
@@ -1338,7 +1380,7 @@ document.addEventListener('click', async e => {
     case 'exportCSV': saveFile(`trade-jurnal-${nowLocal().slice(0, 10)}.csv`, exportCSV(), 'text/csv'); break;
     case 'copyJSON': showText('Yedek (JSON)', JSON.stringify(backupObj())); break;
     case 'wipe': if (await confirmBox('Tüm işlemleri sil', `${S.trades.length} işlem kalıcı olarak silinecek. Önce yedek almanı öneririz.`, 'Hepsini sil')) { const ids = S.trades.map(t => t.id); for (const i of ids) await Store.delTrade(i); toast('Tüm işlemler silindi'); render(); } break;
-    case 'migrate': { try { const o = JSON.parse(localStorage.getItem(LS_KEY)); const n = await Store.bulkPut(o.trades || []); if (o.settings) { S.settings = { ...S.settings, ...o.settings }; Store.saveSettings(); } banner(''); toast(`${n} işlem hesabına aktarıldı`); } catch (err) { toast('Aktarım başarısız.', true); } break; }
+    case 'migrate': { try { const o = JSON.parse(localStorage.getItem(LS_KEY)); const n = await Store.bulkPut(sanitizeList(o.trades)); if (o.settings) { S.settings = sanitizeSettings(o.settings); Store.saveSettings(); } banner(''); toast(`${n} işlem hesabına aktarıldı`); } catch (err) { toast('Aktarım başarısız.', true); } break; }
   }
 });
 function openFormWith(c){ openForm(c); $('.dhead h2').textContent = 'Yeni işlem (kopya)'; $('.dfoot [data-act=delete]')?.remove(); rTouched = false; pnlTouched = false; sessTouched = false; updateCalc(); }
@@ -1346,7 +1388,7 @@ document.addEventListener('change', e => {
   const s = e.target.closest('[data-f]'); if (s) { S.filters[s.dataset.f] = s.value; render(); }
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { if ($('#modalRoot').innerHTML) $('#modalRoot').innerHTML = ''; else if ($('#drawer').classList.contains('open')) closeDrawer(); }
+  if (e.key === 'Escape') { if ($('#modalRoot').innerHTML) { if (modalCancel) modalCancel(); else $('#modalRoot').innerHTML = ''; } else if ($('#drawer').classList.contains('open')) closeDrawer(); }
   if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest('input,textarea,select') && !$('#drawer').classList.contains('open')) { e.preventDefault(); openForm(null); }
 });
 const VIEWS = ['panel', 'islemler', 'analiz', 'koc', 'ayarlar'];

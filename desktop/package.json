@@ -1,0 +1,73 @@
+{
+  "name": "trade-jurnal",
+  "productName": "Trade Jurnal",
+  "version": "1.0.0",
+  "description": "Traderlar için işlem günlüğü ve performans analizi",
+  "author": "zelisss",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "web": "node ../scripts/copy-web.js web",
+    "start": "npm run web && electron .",
+    "dist": "npm run web && electron-builder --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.zelisss.tradejurnal",
+    "productName": "Trade Jurnal",
+    "artifactName": "TradeJurnal-${version}-${os}-${arch}.${ext}",
+    "files": [
+      "main.js",
+      "web/**/*"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Trade Jurnal"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.finance"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "build/icon.png",
+      "category": "Finance"
+    },
+    "publish": null
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zelisss/trade-jurnal.git"
+  }
+}

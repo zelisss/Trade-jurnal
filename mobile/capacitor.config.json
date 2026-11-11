@@ -1,0 +1,7 @@
+{
+  "appId": "com.zelisss.tradejurnal",
+  "appName": "Trade Jurnal",
+  "webDir": "www",
+  "backgroundColor": "#0a0e13",
+  "android": { "backgroundColor": "#0a0e13", "allowMixedContent": false }
+}

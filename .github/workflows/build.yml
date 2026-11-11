@@ -1,0 +1,147 @@
+name: Uygulamaları derle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'manifest.webmanifest'
+      - 'sw.js'
+      - 'icons/**'
+      - 'scripts/**'
+      - 'desktop/**'
+      - 'mobile/**'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_VERSION: 1.0.${{ github.run_number }}
+
+jobs:
+  web:
+    name: Web uygulaması (GitHub Pages)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node scripts/copy-web.js _site && touch _site/.nojekyll
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: "Web sürümü ${{ env.APP_VERSION }}"
+
+  desktop:
+    name: Masaüstü (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    defaults:
+      run: { working-directory: desktop }
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install --no-audit --no-fund
+      - run: npm version ${{ env.APP_VERSION }} --no-git-tag-version --allow-same-version
+      - run: npm run dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.dmg
+            desktop/dist/*.AppImage
+          if-no-files-found: error
+
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: mobile }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - name: Capacitor projesini hazırla
+        run: |
+          npm install --no-audit --no-fund
+          npm run web
+          npx cap add android
+          npx @capacitor/assets generate --android || echo "İkon üretimi atlandı"
+          npx cap sync android
+      - name: Sürüm numarası
+        run: |
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"1.0\"/versionName \"${{ env.APP_VERSION }}\"/" android/app/build.gradle
+      - name: APK derle
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          cd android
+          chmod +x gradlew
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$PWD/release.jks"
+            ./gradlew assembleRelease --no-daemon \
+              -Pandroid.injected.signing.store.file="$PWD/release.jks" \
+              -Pandroid.injected.signing.store.password="$KS_PASS" \
+              -Pandroid.injected.signing.key.alias=tradejurnal \
+              -Pandroid.injected.signing.key.password="$KS_PASS"
+            mkdir -p ../out && cp app/build/outputs/apk/release/app-release.apk "../out/TradeJurnal-${APP_VERSION}-android.apk"
+            echo "APK_KIND=android" >> "$GITHUB_ENV"
+          else
+            echo "::warning::ANDROID_KEYSTORE_B64 tanımlı değil. Sadece test amaçlı debug APK üretildi ve sürüme eklenmedi. Gizli anahtarları ekleyip iş akışını yeniden çalıştırın."
+            ./gradlew assembleDebug --no-daemon
+            mkdir -p ../out && cp app/build/outputs/apk/debug/app-debug.apk "../out/TradeJurnal-${APP_VERSION}-android-debug.apk"
+            echo "APK_KIND=android-debug-test" >> "$GITHUB_ENV"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APK_KIND }}
+          path: mobile/out/*.apk
+          if-no-files-found: error
+
+  release:
+    name: Sürüm yayınla
+    needs: [desktop, android]
+    if: always() && (needs.desktop.result == 'success' || needs.android.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: files, pattern: 'desktop-*', merge-multiple: true }
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with: { path: files, name: android }
+      - run: ls -la files
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.APP_VERSION }}
+          name: Trade Jurnal ${{ env.APP_VERSION }}
+          make_latest: true
+          files: files/*
+          body: |
+            **İndir ve kur**
+            - **Windows:** `TradeJurnal-…-win-x64.exe` → çalıştır. SmartScreen uyarısında *Ek bilgi → Yine de çalıştır*.
+            - **macOS:** `.dmg` (Apple Silicon için `arm64`, Intel için `x64`) → uygulamayı *Uygulamalar*’a sürükle. İlk açılışta sağ tık → *Aç*.
+            - **Linux:** `.AppImage` → çalıştırılabilir yap ve aç.
+            - **Android:** `.apk` → telefonda aç, *bilinmeyen kaynaklara izin ver* → yükle.
+            - **iPhone / tarayıcı:** https://zelisss.github.io/trade-jurnal/ adresini aç; Safari’de *Paylaş → Ana Ekrana Ekle*.
+
+            Veriler her cihazda ayrı saklanır. Cihaz değiştirirken *Ayarlar → Yedek indir / Yedekten yükle* kullan.
